@@ -2677,6 +2677,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "eth-network-exts"
+version = "0.1.0"
+source = "git+https://github.com/jnoorchashm37/eth-network-exts#f95fdd6424d88795dac709ab98bcb995095acb34"
+dependencies = [
+ "alloy-network",
+ "op-alloy-network",
+ "reth-node-ethereum",
+ "reth-node-types",
+ "reth-optimism-node",
+]
+
+[[package]]
 name = "ethereum_hashing"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4056,6 +4068,7 @@ dependencies = [
  "alloy-rpc-client",
  "alloy-rpc-types",
  "async-trait",
+ "eth-network-exts",
  "exe-runners",
  "eyre",
  "futures",
