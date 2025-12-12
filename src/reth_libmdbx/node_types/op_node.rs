@@ -11,7 +11,7 @@ use op_alloy_network::Optimism;
 use reth_db::DatabaseEnv;
 use reth_network_api::noop::NoopNetwork;
 use reth_node_types::NodeTypesWithDBAdapter;
-use reth_optimism_chainspec::{OpChainSpec, OpChainSpecBuilder};
+use reth_optimism_chainspec::OpChainSpec;
 use reth_optimism_evm::OpEvmConfig;
 use reth_optimism_node::{
     txpool::{OpPooledTransaction, OpTransactionValidator},
@@ -133,7 +133,7 @@ mod tests {
     use crate::traits::EthStream;
     use alloy_rpc_types::Filter;
     use eth_network_exts::base_mainnet::BaseMainnetExt;
-    use reth_optimism_chainspec::BASE_MAINNET;
+    use reth_optimism_chainspec::{OpChainSpecBuilder, BASE_MAINNET};
 
     use crate::reth_libmdbx::RethNodeClientBuilder;
 
