@@ -110,37 +110,9 @@ jobs:
   cargo-test:
     name: cargo test
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_HOST_AUTH_METHOD: trust
-          POSTGRES_USER: runner
-          POSTGRES_DB: angstrom-db-mainnet
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-    env:
-      DATABASE_URL: postgres://runner@localhost/angstrom-db-mainnet
-      SKIP_VERIFICATION: true
-      PGHOST: localhost
-      PGPORT: "5432"
-      PGUSER: runner
-      PGDATABASE: postgres
-      PGSSLMODE: disable
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Install diesel CLI
-        run: cargo install diesel_cli --no-default-features --features postgres
-      - name: Run migrations
-        run: diesel migration run
       - name: Run tests
         run: RUSTFLAGS="-C linker-features=-lld" cargo test --workspace --features ci -- --nocapture
