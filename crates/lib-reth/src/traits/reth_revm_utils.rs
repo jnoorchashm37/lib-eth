@@ -103,6 +103,7 @@ impl From<eyre::ErrReport> for RevmUtilError {
 #[cfg(feature = "uniswap-storage")]
 mod _uniswap_storage {
     use alloy_primitives::{Address, StorageKey, StorageValue};
+    use eth_network_exts::EthNetworkExt;
     use reth_provider::StateProvider;
     use reth_rpc_eth_api::helpers::EthState;
     use uniswap_storage::StorageSlotFetcher;
@@ -120,9 +121,9 @@ mod _uniswap_storage {
     }
 
     #[async_trait::async_trait]
-    impl<Node> StorageSlotFetcher for RethNodeClient<Node>
+    impl<Ext: EthNetworkExt> StorageSlotFetcher for RethNodeClient<Ext>
     where
-        Node: NodeClientSpec,
+        Ext::RethNode: NodeClientSpec,
     {
         async fn storage_at(
             &self,

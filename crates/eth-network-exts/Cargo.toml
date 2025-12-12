@@ -1,0 +1,18 @@
+[package]
+name = "eth-network-exts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+exclude.workspace = true
+
+[lib]
+name = "eth_network_exts"
+path = "src/lib.rs"
+
+[dependencies]
+alloy-network.workspace = true
+op-alloy-network.workspace = true
+reth-optimism-node.workspace = true
+reth-node-ethereum.workspace = true
+reth-node-types.workspace = true

@@ -1,24 +1,25 @@
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use alloy_network::Ethereum;
+use eth_network_exts::EthNetworkExt;
 use reth_chainspec::ChainSpec;
-use reth_db::DatabaseEnv;
+use reth_db::{DatabaseEnv, open_db_read_only};
 
 use reth_network_api::noop::NoopNetwork;
 use reth_node_ethereum::{EthEvmConfig, EthereumNode};
 use reth_node_types::NodeTypesWithDBAdapter;
 use reth_provider::providers::{BlockchainProvider, StaticFileProvider};
 use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
-use reth_rpc_eth_api::node::RpcNodeCoreAdapter;
 use reth_rpc_eth_api::RpcConverter;
-use reth_rpc_eth_types::{receipt::EthReceiptConverter, EthConfig, EthFilterConfig};
-use reth_tasks::{pool::BlockingTaskGuard, TaskSpawner};
+use reth_rpc_eth_api::node::RpcNodeCoreAdapter;
+use reth_rpc_eth_types::{EthConfig, EthFilterConfig, receipt::EthReceiptConverter};
+use reth_tasks::{TaskSpawner, pool::BlockingTaskGuard};
 use reth_transaction_pool::{
-    blobstore::NoopBlobStore, validate::EthTransactionValidatorBuilder, CoinbaseTipOrdering, EthPooledTransaction,
-    EthTransactionValidator, Pool, PoolConfig, TransactionValidationTaskExecutor,
+    CoinbaseTipOrdering, EthPooledTransaction, EthTransactionValidator, Pool, PoolConfig, TransactionValidationTaskExecutor,
+    blobstore::NoopBlobStore, validate::EthTransactionValidatorBuilder,
 };
 
-use crate::reth_libmdbx::{NodeClientSpec, RethNodeClient};
+use crate::reth_libmdbx::{DbConfig, NodeClientSpec, RethNodeClient};
 
 type RethApi = EthApi<
     RpcNodeCoreAdapter<RethDbProvider, RethTxPool, NoopNetwork, EthEvmConfig>,
@@ -35,8 +36,6 @@ type RethTxPool = Pool<
 type RethDbProvider = BlockchainProvider<NodeTypesWithDBAdapter<EthereumNode, Arc<DatabaseEnv>>>;
 
 impl NodeClientSpec for EthereumNode {
-    type AlloyNetwork = alloy_network::Ethereum;
-    type NodeChainSpec = ChainSpec;
     type Api = RethApi;
     type Filter = RethFilter;
     type Trace = RethTrace;
@@ -44,15 +43,20 @@ impl NodeClientSpec for EthereumNode {
     type TxPool = RethTxPool;
     type DbProvider = RethDbProvider;
 
-    fn new_with_db<T: TaskSpawner + Clone + 'static>(
-        db: Arc<DatabaseEnv>,
+    fn new_with_db<T, Ext>(
+        db_config: DbConfig,
         max_tasks: usize,
         task_executor: T,
-        static_files_path: PathBuf,
-        chain_spec: Arc<Self::NodeChainSpec>,
+        chain_spec: Arc<Self::ChainSpec>,
         ipc_path_or_rpc_url: Option<String>,
-    ) -> eyre::Result<RethNodeClient<Self>> {
-        let static_file_provider = StaticFileProvider::read_only(static_files_path.clone(), true)?;
+    ) -> eyre::Result<RethNodeClient<Ext>>
+    where
+        T: TaskSpawner + Clone + 'static,
+        Ext: EthNetworkExt<RethNode = Self>,
+    {
+        let db = Arc::new(open_db_read_only(db_config.db_path, db_config.db_args)?);
+
+        let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone(), true)?;
         let provider_factory = EthereumNode::provider_factory_builder()
             .db(db)
             .chainspec(chain_spec.clone())
@@ -89,28 +93,30 @@ impl NodeClientSpec for EthereumNode {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "ci")))]
 mod tests {
     use alloy_rpc_types::Filter;
+    use eth_network_exts::mainnet::MainnetExt;
     use reth_chainspec::MAINNET;
-    use reth_node_ethereum::EthereumNode;
 
     use crate::test_utils::stream_timeout;
     use crate::traits::EthStream;
 
     use crate::reth_libmdbx::RethNodeClientBuilder;
 
+    const MAINNET_DB_PATH: &str = "/var/lib/eth/mainnet/reth/";
+
     #[tokio::test]
     #[serial_test::serial]
     async fn can_build() {
-        let builder = RethNodeClientBuilder::<EthereumNode>::new("/var/lib/eth/mainnet/reth/", 1000, MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<MainnetExt>::new(MAINNET_DB_PATH, 1000, MAINNET.clone(), None);
         assert!(builder.build().is_ok())
     }
 
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_block_stream() {
-        let builder = RethNodeClientBuilder::<EthereumNode>::new("/var/lib/eth/mainnet/reth/", 1000, MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<MainnetExt>::new(MAINNET_DB_PATH, 1000, MAINNET.clone(), None);
         let client = builder.build().unwrap();
 
         let block_stream = client.block_stream().await.unwrap();
@@ -120,7 +126,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_log_stream() {
-        let builder = RethNodeClientBuilder::<EthereumNode>::new("/var/lib/eth/mainnet/reth/", 1000, MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<MainnetExt>::new(MAINNET_DB_PATH, 1000, MAINNET.clone(), None);
         let client = builder.build().unwrap();
 
         let log_stream = client.log_stream(Filter::new()).await.unwrap();
@@ -130,7 +136,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_full_pending_transaction_stream() {
-        let builder = RethNodeClientBuilder::<EthereumNode>::new("/var/lib/eth/mainnet/reth/", 1000, MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<MainnetExt>::new(MAINNET_DB_PATH, 1000, MAINNET.clone(), None);
         let client = builder.build().unwrap();
 
         let mempool_full_stream = client.full_pending_transaction_stream().await.unwrap();
@@ -140,7 +146,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_pending_transaction_hashes_stream() {
-        let builder = RethNodeClientBuilder::<EthereumNode>::new("/var/lib/eth/mainnet/reth/", 1000, MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<MainnetExt>::new(MAINNET_DB_PATH, 1000, MAINNET.clone(), None);
         let client = builder.build().unwrap();
 
         let mempool_hash_stream = client.pending_transaction_hashes_stream().await.unwrap();

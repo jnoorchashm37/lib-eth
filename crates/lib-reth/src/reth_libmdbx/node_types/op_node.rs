@@ -1,31 +1,31 @@
-use std::{path::PathBuf, sync::Arc};
-
 use alloy_primitives::U256;
 use alloy_rpc_types::TransactionInfo;
+use eth_network_exts::EthNetworkExt;
 use op_alloy_consensus::transaction::{OpDepositInfo, OpTransactionInfo};
 use reth_rpc_eth_types::{EthConfig, EthFilterConfig};
 use reth_tasks::pool::BlockingTaskGuard;
-use reth_transaction_pool::{validate::EthTransactionValidatorBuilder, PoolConfig};
+use reth_transaction_pool::{PoolConfig, validate::EthTransactionValidatorBuilder};
+use std::sync::Arc;
 
 use op_alloy_network::Optimism;
-use reth_db::DatabaseEnv;
+use reth_db::{DatabaseEnv, open_db_read_only};
 use reth_network_api::noop::NoopNetwork;
 use reth_node_types::NodeTypesWithDBAdapter;
 use reth_optimism_chainspec::OpChainSpec;
 use reth_optimism_evm::OpEvmConfig;
 use reth_optimism_node::{
-    txpool::{OpPooledTransaction, OpTransactionValidator},
     OpNode,
+    txpool::{OpPooledTransaction, OpTransactionValidator},
 };
 use reth_optimism_primitives::OpTransactionSigned;
-use reth_optimism_rpc::eth::{receipt::OpReceiptConverter, transaction::OpTxInfoMapper};
 use reth_optimism_rpc::OpEthApi;
+use reth_optimism_rpc::eth::{receipt::OpReceiptConverter, transaction::OpTxInfoMapper};
 use reth_provider::providers::{BlockchainProvider, StaticFileProvider};
 use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
-use reth_rpc_eth_api::{node::RpcNodeCoreAdapter, RpcConverter, TxInfoMapper};
-use reth_transaction_pool::{blobstore::NoopBlobStore, CoinbaseTipOrdering, Pool, TransactionValidationTaskExecutor};
+use reth_rpc_eth_api::{RpcConverter, TxInfoMapper, node::RpcNodeCoreAdapter};
+use reth_transaction_pool::{CoinbaseTipOrdering, Pool, TransactionValidationTaskExecutor, blobstore::NoopBlobStore};
 
-use crate::reth_libmdbx::{NodeClientSpec, RethNodeClient};
+use crate::reth_libmdbx::{DbConfig, NodeClientSpec, RethNodeClient};
 
 type OpRethApi = OpEthApi<
     RpcNodeCoreAdapter<OpRethDbProvider, OpRethTxPool, NoopNetwork, OpEvmConfig>,
@@ -43,8 +43,6 @@ type OpRethTxPool = Pool<
 type OpRethDbProvider = BlockchainProvider<NodeTypesWithDBAdapter<OpNode, Arc<DatabaseEnv>>>;
 
 impl NodeClientSpec for OpNode {
-    type AlloyNetwork = op_alloy_network::Optimism;
-    type NodeChainSpec = OpChainSpec;
     type Api = OpRethApi;
     type Filter = OpRethFilter;
     type Trace = OpRethTrace;
@@ -52,15 +50,20 @@ impl NodeClientSpec for OpNode {
     type TxPool = OpRethTxPool;
     type DbProvider = OpRethDbProvider;
 
-    fn new_with_db<T: reth_tasks::TaskSpawner + Clone + 'static>(
-        db: Arc<DatabaseEnv>,
+    fn new_with_db<T, Ext>(
+        db_config: DbConfig,
         max_tasks: usize,
         task_executor: T,
-        static_files_path: PathBuf,
-        chain_spec: Arc<Self::NodeChainSpec>,
+        chain_spec: Arc<Self::ChainSpec>,
         ipc_path_or_rpc_url: Option<String>,
-    ) -> eyre::Result<RethNodeClient<Self>> {
-        let static_file_provider = StaticFileProvider::read_only(static_files_path.clone(), true)?;
+    ) -> eyre::Result<RethNodeClient<Ext>>
+    where
+        T: reth_tasks::TaskSpawner + Clone + 'static,
+        Ext: EthNetworkExt<RethNode = Self>,
+    {
+        let db = Arc::new(open_db_read_only(db_config.db_path, db_config.db_args)?);
+
+        let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone(), true)?;
         let provider_factory = OpNode::provider_factory_builder()
             .db(db)
             .chainspec(chain_spec.clone())
@@ -125,27 +128,40 @@ pub fn get_op_superchain_spec(str: &str) -> Arc<OpChainSpec> {
     reth_optimism_chainspec::generated_chain_value_parser(str).unwrap()
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "ci")))]
 mod tests {
     use crate::test_utils::stream_timeout;
     use crate::traits::EthStream;
     use alloy_rpc_types::Filter;
+    use eth_network_exts::base_mainnet::BaseMainnetExt;
     use reth_optimism_chainspec::BASE_MAINNET;
-    use reth_optimism_node::OpNode;
 
     use crate::reth_libmdbx::RethNodeClientBuilder;
+
+    const BASE_MAINNET_DB_PATH: &str = "/var/lib/eth/base-mainnet/reth/";
+    const BASE_MAINNET_IPC_PATH: &str = "/tmp/reth-base-mainnet.ipc";
 
     #[tokio::test]
     #[serial_test::serial]
     async fn can_build() {
-        let builder = RethNodeClientBuilder::<OpNode>::new("/var/lib/eth/base/reth/", 1000, BASE_MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
+            BASE_MAINNET_DB_PATH,
+            1000,
+            BASE_MAINNET.clone(),
+            Some(BASE_MAINNET_IPC_PATH),
+        );
         assert!(builder.build().is_ok())
     }
 
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_block_stream() {
-        let builder = RethNodeClientBuilder::<OpNode>::new("/var/lib/eth/base/reth/", 1000, BASE_MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
+            BASE_MAINNET_DB_PATH,
+            1000,
+            BASE_MAINNET.clone(),
+            Some(BASE_MAINNET_IPC_PATH),
+        );
         let client = builder.build().unwrap();
 
         let block_stream = client.block_stream().await.unwrap();
@@ -155,7 +171,12 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_log_stream() {
-        let builder = RethNodeClientBuilder::<OpNode>::new("/var/lib/eth/base/reth/", 1000, BASE_MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
+            BASE_MAINNET_DB_PATH,
+            1000,
+            BASE_MAINNET.clone(),
+            Some(BASE_MAINNET_IPC_PATH),
+        );
         let client = builder.build().unwrap();
 
         let log_stream = client.log_stream(Filter::new()).await.unwrap();
@@ -165,7 +186,12 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_full_pending_transaction_stream() {
-        let builder = RethNodeClientBuilder::<OpNode>::new("/var/lib/eth/base/reth/", 1000, BASE_MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
+            BASE_MAINNET_DB_PATH,
+            1000,
+            BASE_MAINNET.clone(),
+            Some(BASE_MAINNET_IPC_PATH),
+        );
         let client = builder.build().unwrap();
 
         let mempool_full_stream = client.full_pending_transaction_stream().await.unwrap();
@@ -175,7 +201,12 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_pending_transaction_hashes_stream() {
-        let builder = RethNodeClientBuilder::<OpNode>::new("/var/lib/eth/base/reth/", 1000, BASE_MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
+            BASE_MAINNET_DB_PATH,
+            1000,
+            BASE_MAINNET.clone(),
+            Some(BASE_MAINNET_IPC_PATH),
+        );
         let client = builder.build().unwrap();
 
         let mempool_hash_stream = client.pending_transaction_hashes_stream().await.unwrap();
