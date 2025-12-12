@@ -6,9 +6,7 @@ use reth_optimism_node::OpNode;
 use crate::{AllExtensions, EthNetworkExt};
 
 #[derive(Default, Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct UnichainMainnetExt<Extension = ()>(PhantomData<Extension>)
-where
-    Extension: AllExtensions;
+pub struct UnichainMainnetExt<Extension = ()>(PhantomData<Extension>);
 
 impl<Extension: AllExtensions> EthNetworkExt for UnichainMainnetExt<Extension> {
     type AlloyNetwork = Optimism;

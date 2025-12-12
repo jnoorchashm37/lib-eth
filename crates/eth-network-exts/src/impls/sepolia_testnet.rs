@@ -6,9 +6,7 @@ use reth_node_ethereum::EthereumNode;
 use crate::{AllExtensions, EthNetworkExt};
 
 #[derive(Default, Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SepoliaTestnetExt<Extension = ()>(PhantomData<Extension>)
-where
-    Extension: AllExtensions;
+pub struct SepoliaTestnetExt<Extension = ()>(PhantomData<Extension>);
 
 impl<Extension: AllExtensions> EthNetworkExt for SepoliaTestnetExt<Extension> {
     type AlloyNetwork = Ethereum;
