@@ -1,10 +1,12 @@
+use std::marker::PhantomData;
+
 use op_alloy_network::Optimism;
 use reth_optimism_node::OpNode;
 
 use crate::{AllExtensions, EthNetworkExt};
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct UnichainMainnetExt<Extension = ()>(Extension)
+#[derive(Default, Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct BaseMainnetExt<Extension = ()>(PhantomData<Extension>)
 where
     Extension: AllExtensions;
 
