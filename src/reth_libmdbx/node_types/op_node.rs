@@ -147,7 +147,7 @@ mod tests {
             BASE_MAINNET_DB_PATH,
             1000,
             // BASE_MAINNET.clone(),
-            OpChainSpecBuilder::base_mainnet().build(),
+            OpChainSpecBuilder::base_mainnet().build().into(),
             Some(BASE_MAINNET_IPC_PATH),
         );
         assert!(builder.build().is_ok())
