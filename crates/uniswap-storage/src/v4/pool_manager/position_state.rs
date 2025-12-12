@@ -116,30 +116,31 @@ pub async fn pool_manager_position_state_liquidity<F: StorageSlotFetcher>(
 #[cfg(test)]
 mod tests {
 
-    use alloy_primitives::{address, aliases::U24};
+    use alloy_primitives::aliases::U24;
 
     use super::*;
     use crate::{
-        test_utils::{V4_POOL_MANAGER_ADDRESS, V4_POSITION_MANAGER_ADDRESS, eth_provider},
-        v4::V4PoolKey
+        angstrom::mainnet::ANGSTROM_L1_CONSTANTS_MAINNET,
+        test_utils::*,
+        v4::{UNISWAP_V4_CONSTANTS_MAINNET, V4PoolKey}
     };
 
     #[tokio::test]
     async fn test_pool_manager_position_fee_growth_inside() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4")
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
 
         let results = pool_manager_position_fee_growth_inside(
             &provider,
-            V4_POOL_MANAGER_ADDRESS,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
             pool_key.into(),
             I24::unchecked_from(190088),
             I24::unchecked_from(-887270),
@@ -149,26 +150,32 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(results, (U256::ZERO, U256::ZERO));
+        assert_eq!(
+            results,
+            (
+                U256::from(13180763546271931776686481343917_u128),
+                U256::from_str_radix("3950914474349982817843030715313190508120", 10).unwrap()
+            )
+        );
     }
 
     #[tokio::test]
     async fn test_pool_manager_position_state_last_fee_growth_inside() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4")
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
 
         let results = pool_manager_position_state_last_fee_growth_inside(
             &provider,
-            V4_POOL_MANAGER_ADDRESS,
-            V4_POSITION_MANAGER_ADDRESS,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
+            UNISWAP_V4_CONSTANTS_MAINNET.position_manager(),
             pool_key.into(),
             U256::from(14328_u64),
             I24::unchecked_from(-887270),
@@ -184,20 +191,20 @@ mod tests {
     #[tokio::test]
     async fn test_pool_manager_position_state_liquidity() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4")
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
 
         let results = pool_manager_position_state_liquidity(
             &provider,
-            V4_POOL_MANAGER_ADDRESS,
-            V4_POSITION_MANAGER_ADDRESS,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
+            UNISWAP_V4_CONSTANTS_MAINNET.position_manager(),
             pool_key.into(),
             U256::from(14328_u64),
             I24::unchecked_from(-887270),

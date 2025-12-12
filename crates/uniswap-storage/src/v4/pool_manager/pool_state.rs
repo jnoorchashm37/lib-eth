@@ -75,57 +75,73 @@ pub async fn pool_manager_pool_liquidity<F: StorageSlotFetcher>(
 mod tests {
 
     use alloy_primitives::{
-        U160, address,
+        U160,
         aliases::{I24, U24}
     };
 
     use super::*;
     use crate::{
-        test_utils::{V4_POOL_MANAGER_ADDRESS, eth_provider},
-        v4::V4PoolKey
+        angstrom::mainnet::ANGSTROM_L1_CONSTANTS_MAINNET,
+        test_utils::*,
+        v4::{UNISWAP_V4_CONSTANTS_MAINNET, V4PoolKey}
     };
 
     #[tokio::test]
     async fn test_pool_manager_pool_fee_growth_global() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4")
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
 
-        let results =
-            pool_manager_pool_fee_growth_global(&provider, V4_POOL_MANAGER_ADDRESS, pool_key.into(), Some(block_number))
-                .await
-                .unwrap();
+        let results = pool_manager_pool_fee_growth_global(
+            &provider,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
+            pool_key.into(),
+            Some(block_number)
+        )
+        .await
+        .unwrap();
 
-        assert_eq!(results, (U256::ZERO, U256::ZERO));
+        assert_eq!(
+            results,
+            (
+                U256::from(13180763546271931776686481343917_u128),
+                U256::from_str_radix("3950914474349982817843030715313190508120", 10).unwrap()
+            )
+        );
     }
 
     #[tokio::test]
     async fn test_pool_manager_pool_slot0() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4")
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
 
-        let results = pool_manager_pool_slot0(&provider, V4_POOL_MANAGER_ADDRESS, pool_key.into(), Some(block_number))
-            .await
-            .unwrap();
+        let results = pool_manager_pool_slot0(
+            &provider,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
+            pool_key.into(),
+            Some(block_number)
+        )
+        .await
+        .unwrap();
 
         let expected = UnpackedSlot0 {
-            sqrt_price_x96: U160::from(1081670548984259501374925403766425_u128),
-            tick:           I24::unchecked_from(190443),
+            sqrt_price_x96: U160::from(1426501997508494087190670451504265_u128),
+            tick:           I24::unchecked_from(195977),
             protocol_fee:   U24::ZERO,
             lp_fee:         U24::ZERO
         };
@@ -136,20 +152,25 @@ mod tests {
     #[tokio::test]
     async fn test_pool_manager_pool_liquidity() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4")
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
 
-        let results = pool_manager_pool_liquidity(&provider, V4_POOL_MANAGER_ADDRESS, pool_key.into(), Some(block_number))
-            .await
-            .unwrap();
+        let results = pool_manager_pool_liquidity(
+            &provider,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
+            pool_key.into(),
+            Some(block_number)
+        )
+        .await
+        .unwrap();
 
-        assert_eq!(results, U256::from(435906614777942732_u128));
+        assert_eq!(results, U256::from(83376670949115238_u128));
     }
 }

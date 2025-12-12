@@ -107,22 +107,27 @@ mod tests {
 
     use super::*;
     use crate::{
-        test_utils::{ANGSTROM_ADDRESS, V4_POOL_MANAGER_ADDRESS, eth_provider},
-        v4::V4PoolKey
+        angstrom::mainnet::ANGSTROM_L1_CONSTANTS_MAINNET,
+        test_utils::{USDC, WETH, eth_provider},
+        v4::{UNISWAP_V4_CONSTANTS_MAINNET, V4PoolKey}
     };
 
     #[tokio::test]
     async fn test_position_manager_position_info() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
-        let results =
-            position_manager_position_info(&provider, V4_POOL_MANAGER_ADDRESS, Some(block_number), U256::from(14328_u64))
-                .await
-                .unwrap();
+        let results = position_manager_position_info(
+            &provider,
+            UNISWAP_V4_CONSTANTS_MAINNET.position_manager(),
+            Some(block_number),
+            U256::from(96348_u64)
+        )
+        .await
+        .unwrap();
 
         let expected =
-            U256::from_str_radix("36752956352201235409813682138304141020772237719769761638105745524212318476800", 10)
+            U256::from_str_radix("103579870420054752514615478328607582000546878402072520800256981255545022515712", 10)
                 .unwrap();
         assert_eq!(results, expected);
     }
@@ -130,21 +135,21 @@ mod tests {
     #[tokio::test]
     async fn test_position_manager_pool_key_and_info() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       ANGSTROM_ADDRESS
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
 
         let (results, _) = position_manager_pool_key_and_info(
             &provider,
-            V4_POOL_MANAGER_ADDRESS,
+            UNISWAP_V4_CONSTANTS_MAINNET.position_manager(),
             Some(block_number),
-            U256::from(14328_u64)
+            U256::from(96348_u64)
         )
         .await
         .unwrap();
@@ -155,25 +160,30 @@ mod tests {
     #[tokio::test]
     async fn test_position_manager_owner_of() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
-        let results =
-            position_manager_owner_of(&provider, V4_POOL_MANAGER_ADDRESS, Some(block_number), U256::from(14328_u64))
-                .await
-                .unwrap();
+        let results = position_manager_owner_of(
+            &provider,
+            UNISWAP_V4_CONSTANTS_MAINNET.position_manager(),
+            Some(block_number),
+            U256::from(96348_u64)
+        )
+        .await
+        .unwrap();
 
-        assert_eq!(results, address!("0x247bcb856d028d66bd865480604f45797446d179"));
+        assert_eq!(results, address!("0xd73326c52ce804cef611c63659e5ea35e4e246e5"));
     }
 
     #[tokio::test]
     async fn test_position_manager_next_token_id() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
-        let results = position_manager_next_token_id(&provider, V4_POOL_MANAGER_ADDRESS, Some(block_number))
-            .await
-            .unwrap();
+        let results =
+            position_manager_next_token_id(&provider, UNISWAP_V4_CONSTANTS_MAINNET.position_manager(), Some(block_number))
+                .await
+                .unwrap();
 
-        assert_eq!(results, U256::ZERO);
+        assert_eq!(results, U256::from(111343_u128));
     }
 }

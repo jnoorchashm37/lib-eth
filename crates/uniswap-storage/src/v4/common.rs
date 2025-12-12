@@ -162,7 +162,12 @@ mod tests {
 
         assert_eq!(unpacked.tick_lower, I24::unchecked_from(-887270));
         assert_eq!(unpacked.tick_upper, I24::unchecked_from(887270));
-        assert_eq!(unpacked.position_manager_pool_map_key, [0; 25]);
+
+        let pool_map_key = [
+            81, 65, 111, 165, 147, 71, 158, 105, 50, 130, 156, 91, 174, 162, 152, 76, 177, 74, 40, 206, 117, 55, 137, 227,
+            97
+        ];
+        assert_eq!(unpacked.position_manager_pool_map_key, pool_map_key);
     }
 
     #[test]
@@ -171,7 +176,9 @@ mod tests {
         let mut slot0 = U256::ZERO;
 
         // Set tick = 100 at offset 160
-        slot0 |= U256::from(100u32) << 160;
+        let tick = I24::unchecked_from(100);
+        let tick_bits = tick.as_i32() as u32 & 0xFFFFFF;
+        slot0 |= U256::from(tick_bits) << 160;
 
         println!("slot0 after setting tick: {slot0:?}");
         println!("Extracted tick raw: {:?}", (slot0 >> 160) & MASK_24_BITS);
@@ -186,13 +193,7 @@ mod tests {
         // Layout: 24 bits empty | 24 bits lpFee | 12 bits protocolFee 1->0 | 12 bits
         // protocolFee 0->1 | 24 bits tick | 160 bits sqrtPriceX96
 
-        // Example values:
-        // sqrtPriceX96: 0x5f4e3d2c1b0a9876543210fedcba98 (160 bits)
-        // tick: 100 (0x000064)
-        // protocolFee: 0x001234 (upper 12 bits for 1->0: 0x001, lower 12 bits for 0->1:
-        // 0x234) lpFee: 3000 (0x000BB8)
-
-        let sqrt_price = U160::from_str_radix("5f4e3d2c1b0a9876543210fedcba98", 16).unwrap();
+        let sqrt_price = U160::from(494855076077838290493259198064540312_u128);
         let tick = I24::unchecked_from(100);
         let protocol_fee = U24::from(0x001234);
         let lp_fee = U24::from(3000);
@@ -204,7 +205,9 @@ mod tests {
         slot0 |= U256::from_limbs([sqrt_price.as_limbs()[0], sqrt_price.as_limbs()[1], sqrt_price.as_limbs()[2], 0]);
 
         // Set tick (24 bits at offset 160)
-        slot0 |= U256::from(tick.bits()) << 160;
+        // Need to mask to 24 bits to handle sign extension properly
+        let tick_bits = tick.as_i32() as u32 & 0xFFFFFF;
+        slot0 |= U256::from(tick_bits) << 160;
 
         // Set protocolFee (24 bits at offset 184)
         slot0 |= U256::from(protocol_fee.to::<u32>()) << 184;
@@ -212,7 +215,6 @@ mod tests {
         // Set lpFee (24 bits at offset 208)
         slot0 |= U256::from(lp_fee.to::<u32>()) << 208;
 
-        // Test unpacking
         let unpacked = slot0.unpack_slot0();
 
         assert_eq!(unpacked.sqrt_price_x96, sqrt_price);
@@ -220,7 +222,6 @@ mod tests {
         assert_eq!(unpacked.protocol_fee, protocol_fee);
         assert_eq!(unpacked.lp_fee, lp_fee);
 
-        // Test individual getters
         assert_eq!(slot0.sqrt_price_x96(), sqrt_price);
         assert_eq!(slot0.tick(), tick);
         assert_eq!(slot0.protocol_fee(), protocol_fee);
@@ -240,7 +241,7 @@ mod tests {
         slot0 |= U256::from_limbs([sqrt_price.as_limbs()[0], sqrt_price.as_limbs()[1], sqrt_price.as_limbs()[2], 0]);
 
         // For negative tick, we need to handle two's complement for 24 bits
-        let tick_bits = tick.bits() & 0xFFFFFF;
+        let tick_bits = tick.as_i32() as u32 & 0xFFFFFF;
         slot0 |= U256::from(tick_bits) << 160;
         slot0 |= U256::from(protocol_fee.to::<u32>()) << 184;
         slot0 |= U256::from(lp_fee.to::<u32>()) << 208;

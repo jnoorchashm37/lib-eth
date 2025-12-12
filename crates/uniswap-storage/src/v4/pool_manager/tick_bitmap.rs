@@ -318,12 +318,13 @@ fn is_tick_at_bounds(tick: I24, tick_spacing: I24, is_decreasing: bool) -> bool 
 
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::{address, aliases::U24, b256};
+    use alloy_primitives::{aliases::U24, b256};
 
     use super::*;
     use crate::{
-        test_utils::{V4_POOL_MANAGER_ADDRESS, eth_provider},
-        v4::V4PoolKey
+        angstrom::mainnet::ANGSTROM_L1_CONSTANTS_MAINNET,
+        test_utils::*,
+        v4::{UNISWAP_V4_CONSTANTS_MAINNET, V4PoolKey}
     };
 
     #[test]
@@ -378,113 +379,142 @@ mod tests {
     #[tokio::test]
     async fn test_tick_bitmap() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4")
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
         let pool_id = pool_key.into();
 
-        let results = tick_bitmap_from_word(&provider, V4_POOL_MANAGER_ADDRESS, pool_id, 346, Some(block_number))
-            .await
-            .unwrap();
+        let results =
+            tick_bitmap_from_word(&provider, UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(), pool_id, 346, Some(block_number))
+                .await
+                .unwrap();
         assert_eq!(results.0, U256::from_str_radix("2854495385411919762116571938898990272765493248", 10).unwrap());
     }
 
     #[tokio::test]
     async fn test_tick_initialized() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4")
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
-        let tick = I24::unchecked_from(190990);
+        let tick = I24::unchecked_from(191000);
         let tick_spacing = pool_key.tickSpacing;
         let pool_id = pool_key.into();
 
-        let results = tick_initialized(&provider, V4_POOL_MANAGER_ADDRESS, tick_spacing, pool_id, tick, Some(block_number))
-            .await
-            .unwrap();
+        let results = tick_initialized(
+            &provider,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
+            tick_spacing,
+            pool_id,
+            tick,
+            Some(block_number)
+        )
+        .await
+        .unwrap();
         assert!(results);
     }
 
     #[tokio::test]
     async fn test_next_tick_gt() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4")
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
-        let tick = I24::unchecked_from(190990);
+        let tick = I24::unchecked_from(190980);
         let tick_spacing = pool_key.tickSpacing;
         let pool_id = pool_key.into();
 
-        let (_, results) =
-            next_tick_gt(&provider, V4_POOL_MANAGER_ADDRESS, tick_spacing, pool_id, tick, true, Some(block_number))
-                .await
-                .unwrap();
+        let (_, results) = next_tick_gt(
+            &provider,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
+            tick_spacing,
+            pool_id,
+            tick,
+            true,
+            Some(block_number)
+        )
+        .await
+        .unwrap();
 
-        assert_eq!(results, I24::unchecked_from(191120));
+        assert_eq!(results, I24::unchecked_from(191000));
     }
 
     #[tokio::test]
     async fn test_next_tick_lt() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4")
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
         let tick = I24::unchecked_from(192311);
         let tick_spacing = pool_key.tickSpacing;
         let pool_id = pool_key.into();
 
-        let (_, results) =
-            next_tick_lt(&provider, V4_POOL_MANAGER_ADDRESS, tick_spacing, pool_id, tick, true, Some(block_number))
-                .await
-                .unwrap();
+        let (_, results) = next_tick_lt(
+            &provider,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
+            tick_spacing,
+            pool_id,
+            tick,
+            true,
+            Some(block_number)
+        )
+        .await
+        .unwrap();
 
-        assert_eq!(results, I24::unchecked_from(191130));
+        assert_eq!(results, I24::unchecked_from(192220));
     }
 
     #[tokio::test]
     async fn test_next_tick_le() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4")
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
         let tick = I24::unchecked_from(192311);
         let tick_spacing = pool_key.tickSpacing;
         let pool_id = pool_key.into();
 
-        let (_, results) =
-            next_tick_le(&provider, V4_POOL_MANAGER_ADDRESS, tick_spacing, pool_id, tick, true, Some(block_number))
-                .await
-                .unwrap();
+        let (_, results) = next_tick_le(
+            &provider,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
+            tick_spacing,
+            pool_id,
+            tick,
+            true,
+            Some(block_number)
+        )
+        .await
+        .unwrap();
 
         assert_eq!(results, I24::unchecked_from(192310));
     }
@@ -500,7 +530,7 @@ mod tests {
 
         let (result_tick, initialized) = next_initialized_tick_within_one_word(
             &provider,
-            V4_POOL_MANAGER_ADDRESS,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
             pool_id,
             tick,
             tick_spacing,
@@ -525,7 +555,7 @@ mod tests {
 
         let (result_tick, initialized) = next_initialized_tick_within_one_word(
             &provider,
-            V4_POOL_MANAGER_ADDRESS,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
             pool_id,
             tick,
             tick_spacing,

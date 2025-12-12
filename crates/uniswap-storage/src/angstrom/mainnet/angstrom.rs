@@ -104,30 +104,31 @@ pub async fn angstrom_last_growth_inside<F: StorageSlotFetcher>(
 #[cfg(test)]
 mod tests {
 
-    use alloy_primitives::{address, aliases::U24};
+    use alloy_primitives::aliases::U24;
 
     use super::*;
     use crate::{
-        test_utils::{ANGSTROM_ADDRESS, V4_POSITION_MANAGER_ADDRESS, eth_provider},
-        v4::V4PoolKey
+        angstrom::mainnet::ANGSTROM_L1_CONSTANTS_MAINNET,
+        test_utils::*,
+        v4::{UNISWAP_V4_CONSTANTS_MAINNET, V4PoolKey}
     };
 
     #[tokio::test]
     async fn test_angstrom_growth_inside() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       ANGSTROM_ADDRESS
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
 
         let results = angstrom_growth_inside(
             &provider,
-            ANGSTROM_ADDRESS,
+            ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address(),
             pool_key.into(),
             I24::unchecked_from(190088),
             I24::unchecked_from(-887270),
@@ -137,81 +138,86 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(results, U256::from(701740166379348581587029420336_u128))
+        assert_eq!(results, U256::from(537930339651242724535793142255130_u128))
     }
 
     #[tokio::test]
     async fn test_angstrom_last_growth_inside() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       ANGSTROM_ADDRESS
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
 
         let results = angstrom_last_growth_inside(
             &provider,
-            ANGSTROM_ADDRESS,
-            V4_POSITION_MANAGER_ADDRESS,
+            ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address(),
+            UNISWAP_V4_CONSTANTS_MAINNET.position_manager(),
             pool_key.into(),
-            U256::from(14328_u64),
-            I24::unchecked_from(-887270),
-            I24::unchecked_from(887270),
+            U256::from(96348_u64),
+            I24::unchecked_from(193290),
+            I24::unchecked_from(196300),
             Some(block_number)
         )
         .await
         .unwrap();
 
-        assert_eq!(results, U256::from(699096039990817998971892310067_u128))
+        assert_eq!(results, U256::from(0_u128))
     }
 
     #[tokio::test]
     async fn test_angstrom_global_growth() {
         let provider = eth_provider().await;
-        let block_number = 0;
+        let block_number = 23998000;
 
         let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
+            currency0:   USDC,
+            currency1:   WETH,
             fee:         U24::from(0x800000),
             tickSpacing: I24::unchecked_from(10),
-            hooks:       ANGSTROM_ADDRESS
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
         };
 
-        let results = angstrom_global_growth(&provider, ANGSTROM_ADDRESS, pool_key.into(), Some(block_number))
-            .await
-            .unwrap();
-
-        assert_eq!(results, U256::from(701740166379348581587029420336_u128))
-    }
-
-    #[tokio::test]
-    async fn test_angstrom_tick_growth_outside() {
-        let provider = eth_provider().await;
-        let block_number = 0;
-
-        let pool_key = V4PoolKey {
-            currency0:   address!("0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"),
-            currency1:   address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"),
-            fee:         U24::from(0x800000),
-            tickSpacing: I24::unchecked_from(10),
-            hooks:       ANGSTROM_ADDRESS
-        };
-
-        let results = angstrom_tick_growth_outside(
+        let results = angstrom_global_growth(
             &provider,
-            ANGSTROM_ADDRESS,
+            ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address(),
             pool_key.into(),
-            I24::unchecked_from(188250),
             Some(block_number)
         )
         .await
         .unwrap();
 
-        assert_eq!(results, U256::from(655382197592272071439615771424_u128))
+        assert_eq!(results, U256::from(551302139298080657575478260093209_u128))
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_tick_growth_outside() {
+        let provider = eth_provider().await;
+        let block_number = 23998000;
+
+        let pool_key = V4PoolKey {
+            currency0:   USDC,
+            currency1:   WETH,
+            fee:         U24::from(0x800000),
+            tickSpacing: I24::unchecked_from(10),
+            hooks:       ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address()
+        };
+
+        let results = angstrom_tick_growth_outside(
+            &provider,
+            ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address(),
+            pool_key.into(),
+            I24::unchecked_from(193290),
+            Some(block_number)
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(results, U256::from(409840027953647546908503544924399_u128))
     }
 }
