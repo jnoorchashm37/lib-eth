@@ -1,0 +1,129 @@
+[package]
+name = "lib-reth"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+exclude.workspace = true
+
+[lib]
+name = "lib_reth"
+path = "src/lib.rs"
+
+[dependencies]
+
+# reth
+reth-provider = { workspace = true, optional = true }
+reth-rpc = { workspace = true, optional = true }
+reth-rpc-eth-types = { workspace = true, optional = true }
+reth-transaction-pool = { workspace = true, optional = true }
+reth-tasks = { workspace = true, optional = true }
+reth-network-api = { workspace = true, optional = true }
+reth-node-ethereum = { workspace = true, optional = true }
+reth-chainspec = { workspace = true, optional = true }
+reth-optimism-chainspec = { workspace = true, optional = true, features = [
+    "serde",
+    "superchain-configs",
+
+] }
+reth-optimism-node = { workspace = true, optional = true }
+reth-optimism-evm = { workspace = true, optional = true }
+reth-optimism-rpc = { workspace = true, optional = true }
+reth-optimism-primitives = { workspace = true, optional = true, features = [
+    "serde",
+    "serde-bincode-compat",
+    "reth-codec",
+    "alloy-compat",
+] }
+reth-db = { workspace = true, optional = true, default-features = false, features = [
+    "mdbx",
+    "op",
+] }
+reth-revm = { workspace = true, optional = true }
+reth-rpc-eth-api = { workspace = true, optional = true }
+reth-storage-api = { workspace = true, optional = true }
+reth-node-types = { workspace = true, optional = true }
+uniswap-storage = { workspace = true, optional = true }
+eth-network-exts.workspace = true
+
+# alloy
+alloy-provider = { workspace = true, default-features = false, features = [
+    "ipc",
+    "ws",
+    "pubsub",
+    "reqwest",
+] }
+alloy-rpc-client = { workspace = true, default-features = false, features = [
+    "ipc",
+    "ws",
+    "pubsub",
+] }
+alloy-network = { workspace = true, default-features = false }
+alloy-rpc-types = { workspace = true, default-features = false, features = [
+    "eth",
+] }
+alloy-primitives = { workspace = true, default-features = false }
+op-alloy-network = { workspace = true, optional = true }
+op-alloy-consensus = { workspace = true, optional = true }
+
+
+# revm
+revm.workspace = true
+revm-database = { workspace = true, default-features = false, features = [
+    "alloydb",
+] }
+
+# async
+tokio = { workspace = true, features = ["full"] }
+futures.workspace = true
+async-trait.workspace = true
+
+# misc
+eyre.workspace = true
+exe-runners = { workspace = true, features = ["reth-tasks"] }
+
+
+[dev-dependencies]
+serial_test.workspace = true
+
+
+[features]
+default = ["full", "op-reth-libmdbx"]
+full = ["ipc", "ws", "uniswap-storage", "revm", "reth-libmdbx"]
+
+
+ipc = []
+ws = []
+
+rayon = ["exe-runners/rayon"]
+
+
+revm = ["reth-libmdbx", "dep:reth-rpc-eth-api", "dep:reth-revm"]
+
+op-reth-libmdbx = [
+    "reth-libmdbx",
+    "dep:reth-optimism-chainspec",
+    "dep:reth-optimism-primitives",
+    "dep:reth-optimism-node",
+    "dep:reth-optimism-evm",
+    "dep:reth-optimism-rpc",
+    "dep:op-alloy-network",
+    "dep:op-alloy-consensus",
+]
+
+reth-libmdbx = [
+    "dep:reth-provider",
+    "dep:reth-rpc",
+    "dep:reth-transaction-pool",
+    "dep:reth-tasks",
+    "dep:reth-network-api",
+    "dep:reth-node-ethereum",
+    "dep:reth-chainspec",
+    "dep:reth-rpc-eth-types",
+    "dep:reth-db",
+    "dep:reth-node-types",
+    "dep:reth-optimism-primitives",
+    "dep:reth-storage-api",
+]
+
+uniswap-storage = ["dep:uniswap-storage"]
