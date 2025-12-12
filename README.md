@@ -19,7 +19,3 @@ Storage utilities for fetching and managing data from Uniswap V3, V4, and Angstr
 
 ### [exe-runners](./crates/exe-runners/)
 Task execution and management utilities with optional Reth integration for async operations and graceful shutdown.
-
-## License
-
-BUSL-1.1
