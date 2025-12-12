@@ -10376,7 +10376,6 @@ dependencies = [
  "async-trait",
  "auto_impl",
  "dotenv",
- "eth-network-exts",
  "eyre",
  "futures",
  "itertools 0.14.0",

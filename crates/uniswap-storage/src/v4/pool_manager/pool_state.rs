@@ -73,7 +73,6 @@ pub async fn pool_manager_pool_liquidity<F: StorageSlotFetcher>(
 
 #[cfg(test)]
 mod tests {
-
     use alloy_primitives::{
         U160,
         aliases::{I24, U24}

@@ -23,7 +23,6 @@ revm-database = { workspace = true, optional = true, features = ["alloydb"] }
 reth-provider = { workspace = true, optional = true }
 reth-rpc = { workspace = true, optional = true }
 reth-rpc-convert = { workspace = true, optional = true }
-eth-network-exts.workspace = true
 
 futures.workspace = true
 serde = { version = "1", features = ["derive"] }
