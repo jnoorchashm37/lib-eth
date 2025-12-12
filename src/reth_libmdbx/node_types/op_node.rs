@@ -138,18 +138,29 @@ mod tests {
     use crate::reth_libmdbx::RethNodeClientBuilder;
 
     const BASE_MAINNET_DB_PATH: &str = "/var/lib/eth/base-mainnet/reth/";
+    const BASE_MAINNET_IPC_PATH: &str = "/tmp/reth-base-mainnet.ipc";
 
     #[tokio::test]
     #[serial_test::serial]
     async fn can_build() {
-        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(BASE_MAINNET_DB_PATH, 1000, BASE_MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
+            BASE_MAINNET_DB_PATH,
+            1000,
+            BASE_MAINNET.clone(),
+            Some(BASE_MAINNET_IPC_PATH),
+        );
         assert!(builder.build().is_ok())
     }
 
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_block_stream() {
-        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(BASE_MAINNET_DB_PATH, 1000, BASE_MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
+            BASE_MAINNET_DB_PATH,
+            1000,
+            BASE_MAINNET.clone(),
+            Some(BASE_MAINNET_IPC_PATH),
+        );
         let client = builder.build().unwrap();
 
         let block_stream = client.block_stream().await.unwrap();
@@ -159,7 +170,12 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_log_stream() {
-        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(BASE_MAINNET_DB_PATH, 1000, BASE_MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
+            BASE_MAINNET_DB_PATH,
+            1000,
+            BASE_MAINNET.clone(),
+            Some(BASE_MAINNET_IPC_PATH),
+        );
         let client = builder.build().unwrap();
 
         let log_stream = client.log_stream(Filter::new()).await.unwrap();
@@ -169,7 +185,12 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_full_pending_transaction_stream() {
-        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(BASE_MAINNET_DB_PATH, 1000, BASE_MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
+            BASE_MAINNET_DB_PATH,
+            1000,
+            BASE_MAINNET.clone(),
+            Some(BASE_MAINNET_IPC_PATH),
+        );
         let client = builder.build().unwrap();
 
         let mempool_full_stream = client.full_pending_transaction_stream().await.unwrap();
@@ -179,7 +200,12 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn test_pending_transaction_hashes_stream() {
-        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(BASE_MAINNET_DB_PATH, 1000, BASE_MAINNET.clone(), None);
+        let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
+            BASE_MAINNET_DB_PATH,
+            1000,
+            BASE_MAINNET.clone(),
+            Some(BASE_MAINNET_IPC_PATH),
+        );
         let client = builder.build().unwrap();
 
         let mempool_hash_stream = client.pending_transaction_hashes_stream().await.unwrap();

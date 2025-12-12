@@ -28,9 +28,15 @@ where
         db_path: &str,
         max_tasks: usize,
         chain: Arc<<Ext::RethNode as NodeTypes>::ChainSpec>,
-        ipc_path_or_rpc_url: Option<String>,
+        ipc_path_or_rpc_url: Option<&str>,
     ) -> Self {
-        Self { db_path: db_path.to_string(), max_tasks, db_args: None, chain, ipc_path_or_rpc_url }
+        Self {
+            db_path: db_path.to_string(),
+            max_tasks,
+            db_args: None,
+            chain,
+            ipc_path_or_rpc_url: ipc_path_or_rpc_url.map(|a| a.to_string()),
+        }
     }
 
     pub fn with_db_args(mut self, db_args: DatabaseArguments) -> Self {

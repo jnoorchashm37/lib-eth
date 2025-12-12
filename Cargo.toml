@@ -42,6 +42,7 @@ reth-rpc-eth-api = { git = "https://github.com/paradigmxyz/reth", version = "1.9
 reth-storage-api = { git = "https://github.com/paradigmxyz/reth", version = "1.9.3", tag = "v1.9.3", optional = true }
 reth-node-types = { git = "https://github.com/paradigmxyz/reth", version = "1.9.3", tag = "v1.9.3", optional = true }
 uniswap-storage = { git = "https://github.com/jnoorchashm37/uniswap-storage", optional = true }
+# uniswap-storage = { path = "/Users/josephnoorchashm/Desktop/Personal/github/uniswap-storage", optional = true }
 eth-network-exts = { git = "https://github.com/jnoorchashm37/eth-network-exts" }
 
 # alloy
