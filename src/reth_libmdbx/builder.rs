@@ -6,10 +6,7 @@ use std::{
 use eth_network_exts::EthNetworkExt;
 use exe_runners::{TaskSpawner, TokioTaskExecutor};
 
-use reth_db::{
-    mdbx::{DatabaseArguments, MaxReadTransactionDuration},
-    open_db_read_only,
-};
+use reth_db::mdbx::{DatabaseArguments, MaxReadTransactionDuration};
 use reth_node_types::NodeTypes;
 
 use crate::reth_libmdbx::node_types::{NodeClientSpec, RethNodeClient};
@@ -55,23 +52,20 @@ where
         self,
         task_executor: T,
     ) -> eyre::Result<RethNodeClient<Ext>> {
-        let (db_path, static_files) = self.db_paths()?;
-
-        println!("{}", db_path.display());
-        println!("{}", static_files.display());
+        let (db_path, static_files_path) = self.db_paths()?;
 
         let db_args = self.db_args.unwrap_or_else(|| {
             DatabaseArguments::new(Default::default()).with_max_read_transaction_duration(Some(
                 MaxReadTransactionDuration::Set(std::time::Duration::from_secs(120)),
             ))
         });
-        let db = Arc::new(open_db_read_only(db_path, db_args)?);
+
+        let db_config = DbConfig { db_path, static_files_path, db_args };
 
         <Ext::RethNode as NodeClientSpec>::new_with_db::<_, Ext>(
-            db,
+            db_config,
             self.max_tasks,
             task_executor,
-            static_files,
             self.chain,
             self.ipc_path_or_rpc_url,
         )
@@ -86,16 +80,22 @@ where
         }
 
         let db_path = db_dir.join("db");
-        let static_files_path = db_dir.join("static_files");
 
         if !db_path.exists() {
             eyre::bail!("no 'db' subdirectory found in directory '{db_dir:?}'")
         }
 
+        let static_files_path = db_dir.join("static_files");
         if !static_files_path.exists() {
             eyre::bail!("no 'static_files' subdirectory found in directory '{db_dir:?}'")
         }
 
         Ok((db_path, static_files_path))
     }
+}
+
+pub struct DbConfig {
+    pub db_path: PathBuf,
+    pub static_files_path: PathBuf,
+    pub db_args: DatabaseArguments,
 }

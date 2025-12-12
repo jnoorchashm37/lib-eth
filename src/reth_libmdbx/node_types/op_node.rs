@@ -5,10 +5,10 @@ use op_alloy_consensus::transaction::{OpDepositInfo, OpTransactionInfo};
 use reth_rpc_eth_types::{EthConfig, EthFilterConfig};
 use reth_tasks::pool::BlockingTaskGuard;
 use reth_transaction_pool::{validate::EthTransactionValidatorBuilder, PoolConfig};
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use op_alloy_network::Optimism;
-use reth_db::DatabaseEnv;
+use reth_db::{open_db_read_only, DatabaseEnv};
 use reth_network_api::noop::NoopNetwork;
 use reth_node_types::NodeTypesWithDBAdapter;
 use reth_optimism_chainspec::OpChainSpec;
@@ -25,7 +25,7 @@ use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
 use reth_rpc_eth_api::{node::RpcNodeCoreAdapter, RpcConverter, TxInfoMapper};
 use reth_transaction_pool::{blobstore::NoopBlobStore, CoinbaseTipOrdering, Pool, TransactionValidationTaskExecutor};
 
-use crate::reth_libmdbx::{NodeClientSpec, RethNodeClient};
+use crate::reth_libmdbx::{DbConfig, NodeClientSpec, RethNodeClient};
 
 type OpRethApi = OpEthApi<
     RpcNodeCoreAdapter<OpRethDbProvider, OpRethTxPool, NoopNetwork, OpEvmConfig>,
@@ -51,10 +51,9 @@ impl NodeClientSpec for OpNode {
     type DbProvider = OpRethDbProvider;
 
     fn new_with_db<T, Ext>(
-        db: Arc<DatabaseEnv>,
+        db_config: DbConfig,
         max_tasks: usize,
         task_executor: T,
-        static_files_path: PathBuf,
         chain_spec: Arc<Self::ChainSpec>,
         ipc_path_or_rpc_url: Option<String>,
     ) -> eyre::Result<RethNodeClient<Ext>>
@@ -62,7 +61,9 @@ impl NodeClientSpec for OpNode {
         T: reth_tasks::TaskSpawner + Clone + 'static,
         Ext: EthNetworkExt<RethNode = Self>,
     {
-        let static_file_provider = StaticFileProvider::read_only(static_files_path.clone(), true)?;
+        let db = Arc::new(open_db_read_only(db_config.db_path, db_config.db_args)?);
+
+        let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone(), true)?;
         let provider_factory = OpNode::provider_factory_builder()
             .db(db)
             .chainspec(chain_spec.clone())

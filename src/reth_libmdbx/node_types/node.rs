@@ -1,9 +1,9 @@
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use alloy_network::Ethereum;
 use eth_network_exts::EthNetworkExt;
 use reth_chainspec::ChainSpec;
-use reth_db::DatabaseEnv;
+use reth_db::{open_db_read_only, DatabaseEnv};
 
 use reth_network_api::noop::NoopNetwork;
 use reth_node_ethereum::{EthEvmConfig, EthereumNode};
@@ -19,7 +19,7 @@ use reth_transaction_pool::{
     EthTransactionValidator, Pool, PoolConfig, TransactionValidationTaskExecutor,
 };
 
-use crate::reth_libmdbx::{NodeClientSpec, RethNodeClient};
+use crate::reth_libmdbx::{DbConfig, NodeClientSpec, RethNodeClient};
 
 type RethApi = EthApi<
     RpcNodeCoreAdapter<RethDbProvider, RethTxPool, NoopNetwork, EthEvmConfig>,
@@ -44,10 +44,9 @@ impl NodeClientSpec for EthereumNode {
     type DbProvider = RethDbProvider;
 
     fn new_with_db<T, Ext>(
-        db: Arc<DatabaseEnv>,
+        db_config: DbConfig,
         max_tasks: usize,
         task_executor: T,
-        static_files_path: PathBuf,
         chain_spec: Arc<Self::ChainSpec>,
         ipc_path_or_rpc_url: Option<String>,
     ) -> eyre::Result<RethNodeClient<Ext>>
@@ -55,7 +54,9 @@ impl NodeClientSpec for EthereumNode {
         T: TaskSpawner + Clone + 'static,
         Ext: EthNetworkExt<RethNode = Self>,
     {
-        let static_file_provider = StaticFileProvider::read_only(static_files_path.clone(), true)?;
+        let db = Arc::new(open_db_read_only(db_config.db_path, db_config.db_args)?);
+
+        let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone(), true)?;
         let provider_factory = EthereumNode::provider_factory_builder()
             .db(db)
             .chainspec(chain_spec.clone())

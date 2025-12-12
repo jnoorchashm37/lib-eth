@@ -1,13 +1,11 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 
 #[cfg(feature = "revm")]
 use crate::traits::BlockNumberOrHash;
-use crate::traits::EthStream;
+use crate::{reth_libmdbx::DbConfig, traits::EthStream};
 
 use alloy_provider::{builder, IpcConnect, RootProvider, WsConnect};
 use eth_network_exts::EthNetworkExt;
-use reth_db::DatabaseEnv;
 use reth_node_types::NodeTypes;
 use reth_provider::{BlockNumReader, DatabaseProviderFactory, StateProviderFactory, TryIntoHistoricalStateProvider};
 use reth_tasks::TaskSpawner;
@@ -34,10 +32,9 @@ pub trait NodeClientSpec: NodeTypes + Send + Sync {
         + 'static;
 
     fn new_with_db<T, Ext>(
-        db: Arc<DatabaseEnv>,
+        db_config: DbConfig,
         max_tasks: usize,
         task_executor: T,
-        static_files_path: PathBuf,
         chain: Arc<<Self as NodeTypes>::ChainSpec>,
         ipc_path_or_rpc_url: Option<String>,
     ) -> eyre::Result<RethNodeClient<Ext>>
