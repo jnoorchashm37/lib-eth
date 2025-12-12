@@ -1,12 +1,9 @@
+use std::sync::Arc;
+
 use alloy_primitives::U256;
 use alloy_rpc_types::TransactionInfo;
 use eth_network_exts::EthNetworkExt;
 use op_alloy_consensus::transaction::{OpDepositInfo, OpTransactionInfo};
-use reth_rpc_eth_types::{EthConfig, EthFilterConfig};
-use reth_tasks::pool::BlockingTaskGuard;
-use reth_transaction_pool::{PoolConfig, validate::EthTransactionValidatorBuilder};
-use std::sync::Arc;
-
 use op_alloy_network::Optimism;
 use reth_db::{DatabaseEnv, open_db_read_only};
 use reth_network_api::noop::NoopNetwork;
@@ -15,21 +12,28 @@ use reth_optimism_chainspec::OpChainSpec;
 use reth_optimism_evm::OpEvmConfig;
 use reth_optimism_node::{
     OpNode,
-    txpool::{OpPooledTransaction, OpTransactionValidator},
+    txpool::{OpPooledTransaction, OpTransactionValidator}
 };
 use reth_optimism_primitives::OpTransactionSigned;
-use reth_optimism_rpc::OpEthApi;
-use reth_optimism_rpc::eth::{receipt::OpReceiptConverter, transaction::OpTxInfoMapper};
+use reth_optimism_rpc::{
+    OpEthApi,
+    eth::{receipt::OpReceiptConverter, transaction::OpTxInfoMapper}
+};
 use reth_provider::providers::{BlockchainProvider, StaticFileProvider};
 use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
 use reth_rpc_eth_api::{RpcConverter, TxInfoMapper, node::RpcNodeCoreAdapter};
-use reth_transaction_pool::{CoinbaseTipOrdering, Pool, TransactionValidationTaskExecutor, blobstore::NoopBlobStore};
+use reth_rpc_eth_types::{EthConfig, EthFilterConfig};
+use reth_tasks::pool::BlockingTaskGuard;
+use reth_transaction_pool::{
+    CoinbaseTipOrdering, Pool, PoolConfig, TransactionValidationTaskExecutor, blobstore::NoopBlobStore,
+    validate::EthTransactionValidatorBuilder
+};
 
 use crate::reth_libmdbx::{DbConfig, NodeClientSpec, RethNodeClient};
 
 type OpRethApi = OpEthApi<
     RpcNodeCoreAdapter<OpRethDbProvider, OpRethTxPool, NoopNetwork, OpEvmConfig>,
-    RpcConverter<Optimism, OpEvmConfig, OpReceiptConverter<OpRethDbProvider>, (), OpTxInfoMapper<OpRethDbProvider>>,
+    RpcConverter<Optimism, OpEvmConfig, OpReceiptConverter<OpRethDbProvider>, (), OpTxInfoMapper<OpRethDbProvider>>
 >;
 type OpRethFilter = EthFilter<OpRethApi>;
 type OpRethTrace = TraceApi<OpRethApi>;
@@ -37,29 +41,29 @@ type OpRethDebug = DebugApi<OpRethApi>;
 type OpRethTxPool = Pool<
     TransactionValidationTaskExecutor<OpTransactionValidator<OpRethDbProvider, OpPooledTransaction>>,
     CoinbaseTipOrdering<OpPooledTransaction>,
-    NoopBlobStore,
+    NoopBlobStore
 >;
 
 type OpRethDbProvider = BlockchainProvider<NodeTypesWithDBAdapter<OpNode, Arc<DatabaseEnv>>>;
 
 impl NodeClientSpec for OpNode {
     type Api = OpRethApi;
+    type DbProvider = OpRethDbProvider;
+    type Debug = OpRethDebug;
     type Filter = OpRethFilter;
     type Trace = OpRethTrace;
-    type Debug = OpRethDebug;
     type TxPool = OpRethTxPool;
-    type DbProvider = OpRethDbProvider;
 
     fn new_with_db<T, Ext>(
         db_config: DbConfig,
         max_tasks: usize,
         task_executor: T,
         chain_spec: Arc<Self::ChainSpec>,
-        ipc_path_or_rpc_url: Option<String>,
+        ipc_path_or_rpc_url: Option<String>
     ) -> eyre::Result<RethNodeClient<Ext>>
     where
         T: reth_tasks::TaskSpawner + Clone + 'static,
-        Ext: EthNetworkExt<RethNode = Self>,
+        Ext: EthNetworkExt<RethNode = Self>
     {
         let db = Arc::new(open_db_read_only(db_config.db_path, db_config.db_args)?);
 
@@ -80,7 +84,7 @@ impl NodeClientSpec for OpNode {
             transaction_validator,
             CoinbaseTipOrdering::default(),
             NoopBlobStore::default(),
-            PoolConfig::default(),
+            PoolConfig::default()
         );
 
         let evm_config = OpEvmConfig::optimism(chain_spec.clone());
@@ -107,7 +111,7 @@ impl NodeClientSpec for OpNode {
             tx_pool,
             db_provider: blockchain_provider,
             chain_spec,
-            ipc_path_or_rpc_url,
+            ipc_path_or_rpc_url
         })
     }
 }
@@ -116,8 +120,8 @@ impl NodeClientSpec for OpNode {
 pub struct SimpleOpTxInfoMapper;
 
 impl TxInfoMapper<OpTransactionSigned> for SimpleOpTxInfoMapper {
-    type Out = OpTransactionInfo;
     type Err = std::convert::Infallible;
+    type Out = OpTransactionInfo;
 
     fn try_map(&self, _tx: &OpTransactionSigned, tx_info: TransactionInfo) -> Result<Self::Out, Self::Err> {
         Ok(OpTransactionInfo::new(tx_info, OpDepositInfo::default()))
@@ -130,13 +134,11 @@ pub fn get_op_superchain_spec(str: &str) -> Arc<OpChainSpec> {
 
 #[cfg(all(test, not(feature = "ci")))]
 mod tests {
-    use crate::test_utils::stream_timeout;
-    use crate::traits::EthStream;
     use alloy_rpc_types::Filter;
     use eth_network_exts::base_mainnet::BaseMainnetExt;
     use reth_optimism_chainspec::BASE_MAINNET;
 
-    use crate::reth_libmdbx::RethNodeClientBuilder;
+    use crate::{reth_libmdbx::RethNodeClientBuilder, test_utils::stream_timeout, traits::EthStream};
 
     const BASE_MAINNET_DB_PATH: &str = "/var/lib/eth/base-mainnet/reth/";
     const BASE_MAINNET_IPC_PATH: &str = "/tmp/reth-base-mainnet.ipc";
@@ -148,7 +150,7 @@ mod tests {
             BASE_MAINNET_DB_PATH,
             1000,
             BASE_MAINNET.clone(),
-            Some(BASE_MAINNET_IPC_PATH),
+            Some(BASE_MAINNET_IPC_PATH)
         );
         assert!(builder.build().is_ok())
     }
@@ -160,7 +162,7 @@ mod tests {
             BASE_MAINNET_DB_PATH,
             1000,
             BASE_MAINNET.clone(),
-            Some(BASE_MAINNET_IPC_PATH),
+            Some(BASE_MAINNET_IPC_PATH)
         );
         let client = builder.build().unwrap();
 
@@ -175,7 +177,7 @@ mod tests {
             BASE_MAINNET_DB_PATH,
             1000,
             BASE_MAINNET.clone(),
-            Some(BASE_MAINNET_IPC_PATH),
+            Some(BASE_MAINNET_IPC_PATH)
         );
         let client = builder.build().unwrap();
 
@@ -190,7 +192,7 @@ mod tests {
             BASE_MAINNET_DB_PATH,
             1000,
             BASE_MAINNET.clone(),
-            Some(BASE_MAINNET_IPC_PATH),
+            Some(BASE_MAINNET_IPC_PATH)
         );
         let client = builder.build().unwrap();
 
@@ -205,7 +207,7 @@ mod tests {
             BASE_MAINNET_DB_PATH,
             1000,
             BASE_MAINNET.clone(),
-            Some(BASE_MAINNET_IPC_PATH),
+            Some(BASE_MAINNET_IPC_PATH)
         );
         let client = builder.build().unwrap();
 

@@ -14,7 +14,6 @@ use alloy_rpc_client::WsConnect;
 use alloy_rpc_types::Filter;
 #[cfg(any(feature = "ipc", feature = "ws"))]
 use futures::Stream;
-
 #[cfg(feature = "revm")]
 use revm_database::{AlloyDB, WrapDatabaseAsync};
 
@@ -23,13 +22,13 @@ use crate::traits::EthStream;
 
 pub struct EthRpcClient<P, N> {
     provider: P,
-    _phantom: PhantomData<N>,
+    _phantom: PhantomData<N>
 }
 
 impl<P, N> EthRpcClient<P, N>
 where
     P: Provider<N> + Clone,
-    N: Network,
+    N: Network
 {
     pub fn provider(&self) -> &P {
         &self.provider
@@ -65,7 +64,7 @@ impl<N: Network> EthRpcClient<RootProvider<N>, N> {
 #[async_trait::async_trait]
 impl<N> EthStream<N> for RootProvider<N>
 where
-    N: Network,
+    N: Network
 {
     async fn root_provider(&self) -> eyre::Result<RootProvider<N>> {
         Ok(self.root().clone())
@@ -76,7 +75,7 @@ where
     }
 
     async fn full_pending_transaction_stream(
-        &self,
+        &self
     ) -> eyre::Result<impl Stream<Item = <N as Network>::TransactionResponse>> {
         Ok(self
             .subscribe_full_pending_transactions()
@@ -96,7 +95,7 @@ where
 impl<P, N> Provider<N> for EthRpcClient<P, N>
 where
     P: Provider<N> + Clone,
-    N: Network,
+    N: Network
 {
     fn root(&self) -> &RootProvider<N> {
         self.provider.root()
@@ -107,14 +106,14 @@ where
 impl<P, N> crate::traits::AsyncEthRevm for EthRpcClient<P, N>
 where
     P: Provider<N> + Clone,
-    N: Network,
+    N: Network
 {
     type InnerDb = AlloyDB<N, P>;
 
     fn make_inner_db(
         &self,
         block_number: u64,
-        handle: tokio::runtime::Handle,
+        handle: tokio::runtime::Handle
     ) -> eyre::Result<WrapDatabaseAsync<Self::InnerDb>> {
         Ok(WrapDatabaseAsync::with_handle(AlloyDB::new(self.provider.clone(), block_number.into()), handle))
     }

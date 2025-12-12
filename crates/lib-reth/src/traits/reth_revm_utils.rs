@@ -2,10 +2,10 @@ use alloy_primitives::{Address, B256, U256};
 use reth_provider::StateProvider;
 use reth_revm::database::StateProviderDatabase;
 use revm::{
-    bytecode::{eip7702::Eip7702Bytecode, LegacyAnalyzedBytecode},
-    context_interface::DBErrorMarker,
-    state::{AccountInfo, Bytecode},
     DatabaseRef,
+    bytecode::{LegacyAnalyzedBytecode, eip7702::Eip7702Bytecode},
+    context_interface::DBErrorMarker,
+    state::{AccountInfo, Bytecode}
 };
 
 pub struct RethLibmdbxDatabaseRef(StateProviderDatabase<Box<dyn StateProvider>>);
@@ -28,10 +28,10 @@ impl DatabaseRef for RethLibmdbxDatabaseRef {
             .map_err(RevmUtilError::as_value)?
             .map(|acct| {
                 Ok::<_, Self::Error>(AccountInfo {
-                    balance: acct.balance,
-                    nonce: acct.nonce,
+                    balance:   acct.balance,
+                    nonce:     acct.nonce,
                     code_hash: acct.code_hash,
-                    code: acct.code.map(change_bytecode).transpose()?,
+                    code:      acct.code.map(change_bytecode).transpose()?
                 })
             })
             .transpose()
@@ -56,14 +56,14 @@ fn change_bytecode(bytes: reth_revm::bytecode::Bytecode) -> eyre::Result<Bytecod
             Bytecode::LegacyAnalyzed(LegacyAnalyzedBytecode::new(
                 legacy_analyzed_bytecode.bytecode().clone(),
                 legacy_analyzed_bytecode.original_len(),
-                legacy_analyzed_bytecode.jump_table().clone(),
+                legacy_analyzed_bytecode.jump_table().clone()
             ))
         }
         reth_revm::bytecode::Bytecode::Eip7702(eip7702_bytecode) => Bytecode::Eip7702(Eip7702Bytecode {
             delegated_address: eip7702_bytecode.delegated_address,
-            version: eip7702_bytecode.version,
-            raw: eip7702_bytecode.raw,
-        }),
+            version:           eip7702_bytecode.version,
+            raw:               eip7702_bytecode.raw
+        })
     };
 
     Ok(new_bytecode)
@@ -110,7 +110,7 @@ mod _uniswap_storage {
 
     use crate::{
         reth_libmdbx::{NodeClientSpec, RethNodeClient},
-        traits::reth_revm_utils::RethLibmdbxDatabaseRef,
+        traits::reth_revm_utils::RethLibmdbxDatabaseRef
     };
 
     #[async_trait::async_trait]
@@ -123,13 +123,13 @@ mod _uniswap_storage {
     #[async_trait::async_trait]
     impl<Ext: EthNetworkExt> StorageSlotFetcher for RethNodeClient<Ext>
     where
-        Ext::RethNode: NodeClientSpec,
+        Ext::RethNode: NodeClientSpec
     {
         async fn storage_at(
             &self,
             address: Address,
             key: StorageKey,
-            block_number: Option<u64>,
+            block_number: Option<u64>
         ) -> eyre::Result<StorageValue> {
             Ok(self
                 .eth_api()
