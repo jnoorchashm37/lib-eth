@@ -4,7 +4,7 @@ A collection of Ethereum libraries for building applications with Reth and Alloy
 
 ## Overview
 
-This monorepo contains utilities and abstractions for interacting with Ethereum networks, Reth nodes, and Uniswap protocols. It provides a comprehensive toolkit for developers building on Ethereum and Layer 2 networks.
+This monorepo contains utilities and abstractions for interacting with Ethereum networks, Reth nodes, and Alloy tooling. It provides a comprehensive toolkit for developers building on Ethereum and Layer 2 networks.
 
 ## Crates
 
