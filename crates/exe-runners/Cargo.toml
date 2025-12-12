@@ -1,0 +1,38 @@
+[package]
+name = "exe-runners"
+version = "0.1.0"
+edition = "2021"
+
+
+[lib]
+name = "exe_runners"
+
+[dependencies]
+
+# async
+tokio = { workspace = true, features = [
+    "sync",
+    "rt",
+    "macros",
+    "rt-multi-thread",
+    "signal",
+] }
+futures-util.workspace = true
+
+# tracing
+tracing-futures.workspace = true
+tracing.workspace = true
+
+# misc
+auto_impl.workspace = true
+dyn-clone.workspace = true
+thiserror.workspace = true
+
+# reth-tasks 
+reth-tasks = { workspace = true, optional = true }
+
+
+[features]
+default = []
+reth-tasks = ["dep:reth-tasks"]
+rayon = ["reth-tasks/rayon"]
