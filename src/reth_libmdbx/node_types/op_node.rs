@@ -11,7 +11,7 @@ use op_alloy_network::Optimism;
 use reth_db::DatabaseEnv;
 use reth_network_api::noop::NoopNetwork;
 use reth_node_types::NodeTypesWithDBAdapter;
-use reth_optimism_chainspec::OpChainSpec;
+use reth_optimism_chainspec::{OpChainSpec, OpChainSpecBuilder};
 use reth_optimism_evm::OpEvmConfig;
 use reth_optimism_node::{
     txpool::{OpPooledTransaction, OpTransactionValidator},
@@ -146,7 +146,8 @@ mod tests {
         let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
             BASE_MAINNET_DB_PATH,
             1000,
-            BASE_MAINNET.clone(),
+            // BASE_MAINNET.clone(),
+            OpChainSpecBuilder::base_mainnet().build(),
             Some(BASE_MAINNET_IPC_PATH),
         );
         assert!(builder.build().is_ok())
