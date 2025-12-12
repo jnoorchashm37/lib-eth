@@ -2759,21 +2759,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "exe-runners"
-version = "0.1.0"
-source = "git+https://github.com/jnoorchashm37/exe-runners#514ceccc6eae42ec71ac2047d98eee8fdc32bbdc"
-dependencies = [
- "auto_impl",
- "dyn-clone",
- "futures-util",
- "reth-tasks",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "tracing-futures",
-]
-
-[[package]]
 name = "eyre"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4088,7 +4073,7 @@ dependencies = [
  "alloy-rpc-types",
  "async-trait",
  "eth-network-exts",
- "exe-runners 0.1.0 (git+https://github.com/jnoorchashm37/exe-runners)",
+ "exe-runners",
  "eyre",
  "futures",
  "op-alloy-consensus",

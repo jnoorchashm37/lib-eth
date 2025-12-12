@@ -1,17 +1,17 @@
 use std::sync::Arc;
 
+use alloy_provider::{IpcConnect, RootProvider, WsConnect, builder};
+use eth_network_exts::EthNetworkExt;
+use reth_node_types::NodeTypes;
+use reth_provider::{
+    BlockNumReader, CanonStateSubscriptions, DatabaseProviderFactory, StateProviderFactory, TryIntoHistoricalStateProvider
+};
+use reth_rpc_eth_api::{EthApiTypes, FullEthApiServer, RpcNodeCore, helpers::FullEthApi};
+use reth_tasks::TaskSpawner;
+
 #[cfg(feature = "revm")]
 use crate::traits::BlockNumberOrHash;
 use crate::{reth_libmdbx::DbConfig, traits::EthStream};
-
-use alloy_provider::{builder, IpcConnect, RootProvider, WsConnect};
-use eth_network_exts::EthNetworkExt;
-use reth_node_types::NodeTypes;
-use reth_provider::{BlockNumReader, DatabaseProviderFactory, StateProviderFactory, TryIntoHistoricalStateProvider};
-use reth_tasks::TaskSpawner;
-
-use reth_provider::CanonStateSubscriptions;
-use reth_rpc_eth_api::{helpers::FullEthApi, EthApiTypes, FullEthApiServer, RpcNodeCore};
 
 pub mod node;
 #[cfg(feature = "op-reth-libmdbx")]
@@ -36,7 +36,7 @@ pub trait NodeClientSpec: NodeTypes + Send + Sync {
         max_tasks: usize,
         task_executor: T,
         chain: Arc<<Self as NodeTypes>::ChainSpec>,
-        ipc_path_or_rpc_url: Option<String>,
+        ipc_path_or_rpc_url: Option<String>
     ) -> eyre::Result<RethNodeClient<Ext>>
     where
         T: TaskSpawner + Clone + 'static,
@@ -45,21 +45,21 @@ pub trait NodeClientSpec: NodeTypes + Send + Sync {
 
 pub struct RethNodeClient<Ext: EthNetworkExt>
 where
-    Ext::RethNode: NodeClientSpec,
+    Ext::RethNode: NodeClientSpec
 {
-    api: <Ext::RethNode as NodeClientSpec>::Api,
-    filter: <Ext::RethNode as NodeClientSpec>::Filter,
-    trace: <Ext::RethNode as NodeClientSpec>::Trace,
-    debug: <Ext::RethNode as NodeClientSpec>::Debug,
-    tx_pool: <Ext::RethNode as NodeClientSpec>::TxPool,
-    db_provider: <Ext::RethNode as NodeClientSpec>::DbProvider,
-    chain_spec: Arc<<Ext::RethNode as NodeTypes>::ChainSpec>,
-    ipc_path_or_rpc_url: Option<String>,
+    api:                 <Ext::RethNode as NodeClientSpec>::Api,
+    filter:              <Ext::RethNode as NodeClientSpec>::Filter,
+    trace:               <Ext::RethNode as NodeClientSpec>::Trace,
+    debug:               <Ext::RethNode as NodeClientSpec>::Debug,
+    tx_pool:             <Ext::RethNode as NodeClientSpec>::TxPool,
+    db_provider:         <Ext::RethNode as NodeClientSpec>::DbProvider,
+    chain_spec:          Arc<<Ext::RethNode as NodeTypes>::ChainSpec>,
+    ipc_path_or_rpc_url: Option<String>
 }
 
 impl<Ext: EthNetworkExt> RethNodeClient<Ext>
 where
-    Ext::RethNode: NodeClientSpec,
+    Ext::RethNode: NodeClientSpec
 {
     pub fn chain_spec(&self) -> Arc<<Ext::RethNode as NodeTypes>::ChainSpec> {
         self.chain_spec.clone()
@@ -93,7 +93,7 @@ where
 #[async_trait::async_trait]
 impl<Ext: EthNetworkExt> EthStream<Ext::AlloyNetwork> for RethNodeClient<Ext>
 where
-    Ext::RethNode: NodeClientSpec,
+    Ext::RethNode: NodeClientSpec
 {
     async fn root_provider(&self) -> eyre::Result<RootProvider<Ext::AlloyNetwork>> {
         let conn_url = self
@@ -122,7 +122,7 @@ where
 #[cfg(feature = "revm")]
 impl<Ext: EthNetworkExt> crate::traits::EthRevm for RethNodeClient<Ext>
 where
-    Ext::RethNode: NodeClientSpec,
+    Ext::RethNode: NodeClientSpec
 {
     type InnerDb = crate::traits::reth_revm_utils::RethLibmdbxDatabaseRef;
 
@@ -135,7 +135,7 @@ where
             BlockNumberOrHash::Number(num) => self
                 .eth_db_provider()
                 .state_by_block_number_or_tag(num.into())?,
-            BlockNumberOrHash::Hash(hash) => self.eth_db_provider().state_by_block_hash(hash)?,
+            BlockNumberOrHash::Hash(hash) => self.eth_db_provider().state_by_block_hash(hash)?
         };
 
         let this = reth_revm::database::StateProviderDatabase::new(state_provider);

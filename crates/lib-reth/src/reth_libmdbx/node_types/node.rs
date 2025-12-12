@@ -4,26 +4,24 @@ use alloy_network::Ethereum;
 use eth_network_exts::EthNetworkExt;
 use reth_chainspec::ChainSpec;
 use reth_db::{DatabaseEnv, open_db_read_only};
-
 use reth_network_api::noop::NoopNetwork;
 use reth_node_ethereum::{EthEvmConfig, EthereumNode};
 use reth_node_types::NodeTypesWithDBAdapter;
 use reth_provider::providers::{BlockchainProvider, StaticFileProvider};
 use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
-use reth_rpc_eth_api::RpcConverter;
-use reth_rpc_eth_api::node::RpcNodeCoreAdapter;
+use reth_rpc_eth_api::{RpcConverter, node::RpcNodeCoreAdapter};
 use reth_rpc_eth_types::{EthConfig, EthFilterConfig, receipt::EthReceiptConverter};
 use reth_tasks::{TaskSpawner, pool::BlockingTaskGuard};
 use reth_transaction_pool::{
     CoinbaseTipOrdering, EthPooledTransaction, EthTransactionValidator, Pool, PoolConfig, TransactionValidationTaskExecutor,
-    blobstore::NoopBlobStore, validate::EthTransactionValidatorBuilder,
+    blobstore::NoopBlobStore, validate::EthTransactionValidatorBuilder
 };
 
 use crate::reth_libmdbx::{DbConfig, NodeClientSpec, RethNodeClient};
 
 type RethApi = EthApi<
     RpcNodeCoreAdapter<RethDbProvider, RethTxPool, NoopNetwork, EthEvmConfig>,
-    RpcConverter<Ethereum, EthEvmConfig, EthReceiptConverter<ChainSpec>>,
+    RpcConverter<Ethereum, EthEvmConfig, EthReceiptConverter<ChainSpec>>
 >;
 type RethFilter = EthFilter<RethApi>;
 type RethTrace = TraceApi<RethApi>;
@@ -31,28 +29,28 @@ type RethDebug = DebugApi<RethApi>;
 type RethTxPool = Pool<
     TransactionValidationTaskExecutor<EthTransactionValidator<RethDbProvider, EthPooledTransaction>>,
     CoinbaseTipOrdering<EthPooledTransaction>,
-    NoopBlobStore,
+    NoopBlobStore
 >;
 type RethDbProvider = BlockchainProvider<NodeTypesWithDBAdapter<EthereumNode, Arc<DatabaseEnv>>>;
 
 impl NodeClientSpec for EthereumNode {
     type Api = RethApi;
+    type DbProvider = RethDbProvider;
+    type Debug = RethDebug;
     type Filter = RethFilter;
     type Trace = RethTrace;
-    type Debug = RethDebug;
     type TxPool = RethTxPool;
-    type DbProvider = RethDbProvider;
 
     fn new_with_db<T, Ext>(
         db_config: DbConfig,
         max_tasks: usize,
         task_executor: T,
         chain_spec: Arc<Self::ChainSpec>,
-        ipc_path_or_rpc_url: Option<String>,
+        ipc_path_or_rpc_url: Option<String>
     ) -> eyre::Result<RethNodeClient<Ext>>
     where
         T: TaskSpawner + Clone + 'static,
-        Ext: EthNetworkExt<RethNode = Self>,
+        Ext: EthNetworkExt<RethNode = Self>
     {
         let db = Arc::new(open_db_read_only(db_config.db_path, db_config.db_args)?);
 
@@ -88,7 +86,7 @@ impl NodeClientSpec for EthereumNode {
             tx_pool,
             db_provider: blockchain_provider,
             chain_spec,
-            ipc_path_or_rpc_url,
+            ipc_path_or_rpc_url
         })
     }
 }
@@ -99,10 +97,7 @@ mod tests {
     use eth_network_exts::mainnet::MainnetExt;
     use reth_chainspec::MAINNET;
 
-    use crate::test_utils::stream_timeout;
-    use crate::traits::EthStream;
-
-    use crate::reth_libmdbx::RethNodeClientBuilder;
+    use crate::{reth_libmdbx::RethNodeClientBuilder, test_utils::stream_timeout, traits::EthStream};
 
     const MAINNET_DB_PATH: &str = "/var/lib/eth/mainnet/reth/";
 

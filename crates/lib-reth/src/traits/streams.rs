@@ -1,7 +1,6 @@
 use alloy_network::Network;
 use alloy_primitives::TxHash;
-use alloy_provider::Provider;
-use alloy_provider::RootProvider;
+use alloy_provider::{Provider, RootProvider};
 use alloy_rpc_types::eth::Filter;
 use futures::Stream;
 
@@ -18,13 +17,13 @@ pub trait EthStream<N: Network> {
 
     /// `newPendingTransactions` (true)
     async fn full_pending_transaction_stream(
-        &self,
+        &self
     ) -> eyre::Result<impl Stream<Item = <N as Network>::TransactionResponse>> {
         let root = EthStream::root_provider(self).await?;
         eyre::Ok(
             root.subscribe_full_pending_transactions()
                 .await?
-                .into_stream(),
+                .into_stream()
         )
     }
 

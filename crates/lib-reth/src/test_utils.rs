@@ -1,17 +1,16 @@
 use std::fmt::Debug;
 
-use futures::Stream;
-use futures::StreamExt;
+use futures::{Stream, StreamExt};
 
 pub async fn stream_timeout<O: Debug>(
     stream: impl Stream<Item = O> + Unpin,
     values: usize,
-    timeout: u64,
+    timeout: u64
 ) -> eyre::Result<()> {
     let mut sub_stream = stream.take(values);
     let f = async move {
         let mut vals = values;
-        while let Some(_) = sub_stream.next().await {
+        while sub_stream.next().await.is_some() {
             println!("recieved stream value");
             vals -= 1;
             if vals == 0 {

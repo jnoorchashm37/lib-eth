@@ -4,7 +4,7 @@ A collection of Ethereum libraries for building applications with Reth and Alloy
 
 ## Overview
 
-This monorepo contains utilities and abstractions for interacting with Ethereum networks, Reth nodes, and Uniswap protocols. It provides a comprehensive toolkit for developers building on Ethereum and Layer 2 networks.
+This monorepo contains utilities and abstractions for interacting with Ethereum networks, Reth nodes, and Alloy tooling. It provides a comprehensive toolkit for developers building on Ethereum and Layer 2 networks.
 
 ## Crates
 
@@ -19,7 +19,3 @@ Storage utilities for fetching and managing data from Uniswap V3, V4, and Angstr
 
 ### [exe-runners](./crates/exe-runners/)
 Task execution and management utilities with optional Reth integration for async operations and graceful shutdown.
-
-## License
-
-BUSL-1.1
