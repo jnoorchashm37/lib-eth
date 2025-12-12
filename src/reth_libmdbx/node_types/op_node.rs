@@ -137,7 +137,7 @@ mod tests {
 
     use crate::reth_libmdbx::RethNodeClientBuilder;
 
-    const BASE_MAINNET_DB_PATH: &str = "/var/lib/eth/base-mainnet/reth/";
+    const BASE_MAINNET_DB_PATH: &str = "/var/lib/eth/base-mainnet/reth";
     const BASE_MAINNET_IPC_PATH: &str = "/tmp/reth-base-mainnet.ipc";
 
     #[tokio::test]
