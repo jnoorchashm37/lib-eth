@@ -41,7 +41,7 @@ impl<N: Network> EthRpcClient<RootProvider<N>, N> {
     pub async fn new_ws(ws_url: &str) -> eyre::Result<Self> {
         let builder = ClientBuilder::default().ws(WsConnect::new(ws_url)).await?;
         let provider = RootProvider::new(builder);
-        Ok(Self { provider, _phantom: PhantomData::default() })
+        Ok(Self { provider, _phantom: PhantomData })
     }
 
     #[cfg(feature = "ipc")]
@@ -50,13 +50,13 @@ impl<N: Network> EthRpcClient<RootProvider<N>, N> {
             .ipc(IpcConnect::new(ipc_path.to_string()))
             .await?;
         let provider = RootProvider::new(builder);
-        Ok(Self { provider, _phantom: PhantomData::default() })
+        Ok(Self { provider, _phantom: PhantomData })
     }
 
     pub fn new_http(http_url: &str) -> eyre::Result<Self> {
         let builder = ClientBuilder::default().http(http_url.parse()?);
         let provider = RootProvider::new(builder);
-        Ok(Self { provider, _phantom: PhantomData::default() })
+        Ok(Self { provider, _phantom: PhantomData })
     }
 }
 
