@@ -1,15 +1,28 @@
-# Reth Ethereum Library
-A library for connecting to and interacting with various ethereum endpoints offered by [reth](https://github.com/paradigmxyz/reth)
+# lib-reth
 
-### Connection Types
-- http (default)
-- ipc (feature = `ipc`)
-- ws (feature = `ws`)
-- libmdbx-db (feature = `libmdbx`)
+Unified interface for connecting to and interacting with Reth nodes.
 
-### Streaming
-The `ipc`, `ws`, and `libmdbx` features implement the `EthStream` trait which contains functionality for creating streams for:
-- Blocks
-- Pending full txs
-- Pending tx hashes
-- Logs
+## Overview
+
+This crate provides a comprehensive library for connecting to Ethereum endpoints using Reth, supporting both Ethereum mainnet and Optimism L2 networks.
+
+## Connection Types
+
+- HTTP (default)
+- IPC (feature = `ipc`)
+- WebSocket (feature = `ws`)
+- Direct database access via libmdbx (feature = `reth-libmdbx`)
+
+## Features
+
+- `full` - All connection types and integrations
+- `revm` - REVM execution support
+- `op-reth-libmdbx` - Optimism node support
+- `rayon` - Parallel execution support
+
+## Supported Functionality
+
+- RPC client implementations
+- Streaming support for blocks, transactions, and logs
+- Direct database access for local nodes
+- Integration with Uniswap storage utilities
