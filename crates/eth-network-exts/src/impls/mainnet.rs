@@ -6,7 +6,7 @@ use reth_node_ethereum::EthereumNode;
 use crate::{AllExtensions, EthNetworkExt};
 
 #[derive(Default, Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BaseMainnetExt<Extension = ()>(PhantomData<Extension>)
+pub struct MainnetExt<Extension = ()>(PhantomData<Extension>)
 where
     Extension: AllExtensions;
 
