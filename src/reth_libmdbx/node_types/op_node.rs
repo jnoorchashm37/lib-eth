@@ -137,7 +137,7 @@ mod tests {
 
     use crate::reth_libmdbx::RethNodeClientBuilder;
 
-    const BASE_MAINNET_DB_PATH: &str = "/var/lib/eth/base-mainnet/reth";
+    const BASE_MAINNET_DB_PATH: &str = "/var/lib/eth/base-mainnet/reth/";
     const BASE_MAINNET_IPC_PATH: &str = "/tmp/reth-base-mainnet.ipc";
 
     #[tokio::test]
@@ -149,22 +149,7 @@ mod tests {
             BASE_MAINNET.clone(),
             Some(BASE_MAINNET_IPC_PATH),
         );
-
-        match builder.build() {
-            Ok(_) => {
-                // Test passes if database is healthy
-            }
-            Err(e) => {
-                eprintln!("Warning: Database appears corrupted or incompatible: {}", e);
-                eprintln!("This may be due to:");
-                eprintln!("1. Version mismatch between reth that created the DB and current version");
-                eprintln!("2. Corrupted static files from interrupted sync");
-                eprintln!("3. Incomplete database initialization");
-                eprintln!("\nTo fix: Re-sync the database with reth v1.9.3");
-                // Skip the test instead of failing
-                return;
-            }
-        }
+        assert!(builder.build().is_ok())
     }
 
     #[tokio::test(flavor = "multi_thread")]
