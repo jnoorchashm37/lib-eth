@@ -235,9 +235,9 @@ mod tests {
 
         let expected = TickData {
             tick,
-            is_initialized:           true,
-            liquidity_net:            -835346192829554,
-            liquidity_gross:          856180027209398,
+            is_initialized: true,
+            liquidity_net: -835346192829554,
+            liquidity_gross: 856180027209398,
             fee_growth_outside0_x128: U256::from(7584652659812447925597184453854_u128),
             fee_growth_outside1_x128: U256::from_str_radix("1964417712546538128069924252082779542067", 10).unwrap()
         };
