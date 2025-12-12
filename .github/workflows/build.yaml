@@ -110,9 +110,11 @@ jobs:
   cargo-test:
     name: cargo test
     runs-on: ubuntu-latest
+    env:
+      ETH_WS_URL: ${{ secrets.ETH_WS_URL }} 
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
-        run: RUSTFLAGS="-C linker-features=-lld" cargo test --workspace --features ci -- --nocapture
+        run: cargo test --workspace --features ci -- --nocapture
