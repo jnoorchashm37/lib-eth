@@ -45,22 +45,7 @@ where
     }
 
     pub fn build(self) -> eyre::Result<RethNodeClient<Ext>> {
-        let (db_path, static_files) = self.db_paths()?;
-
-        let db = Arc::new(open_db_read_only(
-            db_path,
-            self.db_args
-                .unwrap_or(DatabaseArguments::new(Default::default())),
-        )?);
-
-        <Ext::RethNode as NodeClientSpec>::new_with_db::<_, Ext>(
-            db,
-            self.max_tasks,
-            TokioTaskExecutor::default(),
-            static_files,
-            self.chain,
-            self.ipc_path_or_rpc_url,
-        )
+        self.build_with_task_executor(TokioTaskExecutor::default())
     }
 
     pub fn build_with_task_executor<T: TaskSpawner + Clone + 'static>(
@@ -88,6 +73,10 @@ where
     /// (db_path, static_files)
     fn db_paths(&self) -> eyre::Result<(PathBuf, PathBuf)> {
         let db_dir = Path::new(&self.db_path);
+
+        if !db_dir.exists() {
+            eyre::bail!("db path does not exist: {}", self.db_path);
+        }
 
         let db_path = db_dir.join("db");
         let static_files_path = db_dir.join("static_files");
