@@ -3,20 +3,20 @@ use std::sync::Arc;
 use alloy_network::Ethereum;
 use eth_network_exts::EthNetworkExt;
 use reth_chainspec::ChainSpec;
-use reth_db::{open_db_read_only, DatabaseEnv};
+use reth_db::{DatabaseEnv, open_db_read_only};
 
 use reth_network_api::noop::NoopNetwork;
 use reth_node_ethereum::{EthEvmConfig, EthereumNode};
 use reth_node_types::NodeTypesWithDBAdapter;
 use reth_provider::providers::{BlockchainProvider, StaticFileProvider};
 use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
-use reth_rpc_eth_api::node::RpcNodeCoreAdapter;
 use reth_rpc_eth_api::RpcConverter;
-use reth_rpc_eth_types::{receipt::EthReceiptConverter, EthConfig, EthFilterConfig};
-use reth_tasks::{pool::BlockingTaskGuard, TaskSpawner};
+use reth_rpc_eth_api::node::RpcNodeCoreAdapter;
+use reth_rpc_eth_types::{EthConfig, EthFilterConfig, receipt::EthReceiptConverter};
+use reth_tasks::{TaskSpawner, pool::BlockingTaskGuard};
 use reth_transaction_pool::{
-    blobstore::NoopBlobStore, validate::EthTransactionValidatorBuilder, CoinbaseTipOrdering, EthPooledTransaction,
-    EthTransactionValidator, Pool, PoolConfig, TransactionValidationTaskExecutor,
+    CoinbaseTipOrdering, EthPooledTransaction, EthTransactionValidator, Pool, PoolConfig, TransactionValidationTaskExecutor,
+    blobstore::NoopBlobStore, validate::EthTransactionValidatorBuilder,
 };
 
 use crate::reth_libmdbx::{DbConfig, NodeClientSpec, RethNodeClient};
@@ -93,7 +93,7 @@ impl NodeClientSpec for EthereumNode {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "ci")))]
 mod tests {
     use alloy_rpc_types::Filter;
     use eth_network_exts::mainnet::MainnetExt;

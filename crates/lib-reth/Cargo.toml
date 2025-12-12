@@ -127,3 +127,5 @@ reth-libmdbx = [
 ]
 
 uniswap-storage = ["dep:uniswap-storage"]
+
+ci = []

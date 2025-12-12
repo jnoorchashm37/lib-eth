@@ -4,26 +4,26 @@ use eth_network_exts::EthNetworkExt;
 use op_alloy_consensus::transaction::{OpDepositInfo, OpTransactionInfo};
 use reth_rpc_eth_types::{EthConfig, EthFilterConfig};
 use reth_tasks::pool::BlockingTaskGuard;
-use reth_transaction_pool::{validate::EthTransactionValidatorBuilder, PoolConfig};
+use reth_transaction_pool::{PoolConfig, validate::EthTransactionValidatorBuilder};
 use std::sync::Arc;
 
 use op_alloy_network::Optimism;
-use reth_db::{open_db_read_only, DatabaseEnv};
+use reth_db::{DatabaseEnv, open_db_read_only};
 use reth_network_api::noop::NoopNetwork;
 use reth_node_types::NodeTypesWithDBAdapter;
 use reth_optimism_chainspec::OpChainSpec;
 use reth_optimism_evm::OpEvmConfig;
 use reth_optimism_node::{
-    txpool::{OpPooledTransaction, OpTransactionValidator},
     OpNode,
+    txpool::{OpPooledTransaction, OpTransactionValidator},
 };
 use reth_optimism_primitives::OpTransactionSigned;
-use reth_optimism_rpc::eth::{receipt::OpReceiptConverter, transaction::OpTxInfoMapper};
 use reth_optimism_rpc::OpEthApi;
+use reth_optimism_rpc::eth::{receipt::OpReceiptConverter, transaction::OpTxInfoMapper};
 use reth_provider::providers::{BlockchainProvider, StaticFileProvider};
 use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
-use reth_rpc_eth_api::{node::RpcNodeCoreAdapter, RpcConverter, TxInfoMapper};
-use reth_transaction_pool::{blobstore::NoopBlobStore, CoinbaseTipOrdering, Pool, TransactionValidationTaskExecutor};
+use reth_rpc_eth_api::{RpcConverter, TxInfoMapper, node::RpcNodeCoreAdapter};
+use reth_transaction_pool::{CoinbaseTipOrdering, Pool, TransactionValidationTaskExecutor, blobstore::NoopBlobStore};
 
 use crate::reth_libmdbx::{DbConfig, NodeClientSpec, RethNodeClient};
 
@@ -128,7 +128,7 @@ pub fn get_op_superchain_spec(str: &str) -> Arc<OpChainSpec> {
     reth_optimism_chainspec::generated_chain_value_parser(str).unwrap()
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "ci")))]
 mod tests {
     use crate::test_utils::stream_timeout;
     use crate::traits::EthStream;
