@@ -6,7 +6,10 @@ use std::{
 use eth_network_exts::EthNetworkExt;
 use exe_runners::{TaskSpawner, TokioTaskExecutor};
 
-use reth_db::{mdbx::DatabaseArguments, open_db_read_only};
+use reth_db::{
+    mdbx::{DatabaseArguments, MaxReadTransactionDuration},
+    open_db_read_only,
+};
 use reth_node_types::NodeTypes;
 
 use crate::reth_libmdbx::node_types::{NodeClientSpec, RethNodeClient};
@@ -57,11 +60,12 @@ where
         println!("{}", db_path.display());
         println!("{}", static_files.display());
 
-        let db = Arc::new(open_db_read_only(
-            db_path,
-            self.db_args
-                .unwrap_or(DatabaseArguments::new(Default::default())),
-        )?);
+        let db_args = self.db_args.unwrap_or_else(|| {
+            DatabaseArguments::new(Default::default()).with_max_read_transaction_duration(Some(
+                MaxReadTransactionDuration::Set(std::time::Duration::from_secs(120)),
+            ))
+        });
+        let db = Arc::new(open_db_read_only(db_path, db_args)?);
 
         <Ext::RethNode as NodeClientSpec>::new_with_db::<_, Ext>(
             db,
