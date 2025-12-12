@@ -54,6 +54,9 @@ where
     ) -> eyre::Result<RethNodeClient<Ext>> {
         let (db_path, static_files) = self.db_paths()?;
 
+        println!("{}", db_path.display());
+        println!("{}", static_files.display());
+
         let db = Arc::new(open_db_read_only(
             db_path,
             self.db_args
