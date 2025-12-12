@@ -37,8 +37,6 @@ reth-revm = { git = "https://github.com/paradigmxyz/reth", version = "1.9.3", ta
 reth-rpc-eth-api = { git = "https://github.com/paradigmxyz/reth", version = "1.9.3", tag = "v1.9.3" }
 reth-storage-api = { git = "https://github.com/paradigmxyz/reth", version = "1.9.3", tag = "v1.9.3" }
 reth-node-types = { git = "https://github.com/paradigmxyz/reth", version = "1.9.3", tag = "v1.9.3" }
-# uniswap-storage = { git = "https://github.com/jnoorchashm37/uniswap-storage", branch = "l2" }
-# uniswap-storage = { path = "/Users/josephnoorchashm/Desktop/Personal/github/uniswap-storage" }
 
 
 # alloy
