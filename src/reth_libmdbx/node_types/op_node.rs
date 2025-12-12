@@ -133,7 +133,7 @@ mod tests {
     use crate::traits::EthStream;
     use alloy_rpc_types::Filter;
     use eth_network_exts::base_mainnet::BaseMainnetExt;
-    use reth_optimism_chainspec::{OpChainSpecBuilder, BASE_MAINNET};
+    use reth_optimism_chainspec::BASE_MAINNET;
 
     use crate::reth_libmdbx::RethNodeClientBuilder;
 
@@ -146,8 +146,7 @@ mod tests {
         let builder = RethNodeClientBuilder::<BaseMainnetExt>::new(
             BASE_MAINNET_DB_PATH,
             1000,
-            // BASE_MAINNET.clone(),
-            OpChainSpecBuilder::base_mainnet().build().into(),
+            BASE_MAINNET.clone(),
             Some(BASE_MAINNET_IPC_PATH),
         );
         assert!(builder.build().is_ok())
