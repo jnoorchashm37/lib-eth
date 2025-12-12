@@ -15,6 +15,7 @@ exclude = [".github/"]
 lib-reth = { path = "./crates/lib-reth" }
 eth-network-exts = { path = "./crates/eth-network-exts" }
 uniswap-storage = { path = "./crates/uniswap-storage" }
+exe-runners = { path = "./crates/exe-runners" }
 
 # reth
 reth-db = { git = "https://github.com/paradigmxyz/reth", version = "1.9.3", tag = "v1.9.3", default-features = false }
@@ -71,7 +72,6 @@ async-trait = "0"
 
 # misc
 eyre = "0.6.5"
-exe-runners = { git = "https://github.com/jnoorchashm37/exe-runners" }
 tracing-futures = "0.2"
 tracing = "0.1.0"
 auto_impl = "1"
