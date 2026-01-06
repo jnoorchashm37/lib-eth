@@ -22,8 +22,9 @@ PoolId is `B256`
 
 use alloy_primitives::{Address, B256, U160, U256, keccak256};
 use alloy_sol_types::SolValue;
+use futures::{StreamExt, stream::FuturesUnordered};
 
-use crate::StorageSlotFetcher;
+use crate::{StorageSlotFetcher, angstrom::l2::AngstromL2FactorySlot0};
 
 // Storage slot constants
 pub const ANGSTROM_L2_FACTORY_SLOT_0: u64 = 0; // withdrawOnly, defaultProtocolSwapFeeAsMultipleE6, defaultProtocolTaxFeeE6
@@ -33,44 +34,16 @@ pub const ANGSTROM_L2_FACTORY_HOOK_POOL_IDS_SLOT: u64 = 3;
 
 /// Gets the packed slot 0 data which contains withdrawOnly,
 /// defaultProtocolSwapFeeAsMultipleE6, and defaultProtocolTaxFeeE6
-pub async fn angstrom_l2_factory_get_slot_0<F: StorageSlotFetcher>(
+pub async fn angstrom_l2_factory_get_slot0<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     factory_address: Address,
     block_number: Option<u64>
-) -> eyre::Result<U256> {
-    slot_fetcher
+) -> eyre::Result<AngstromL2FactorySlot0> {
+    let out = slot_fetcher
         .storage_at(factory_address, U256::from(ANGSTROM_L2_FACTORY_SLOT_0).into(), block_number)
-        .await
-}
+        .await?;
 
-/// Gets whether the factory is in withdraw-only mode
-pub async fn angstrom_l2_factory_withdraw_only<F: StorageSlotFetcher>(
-    slot_fetcher: &F,
-    factory_address: Address,
-    block_number: Option<u64>
-) -> eyre::Result<bool> {
-    let slot_0 = angstrom_l2_factory_get_slot_0(slot_fetcher, factory_address, block_number).await?;
-    Ok((slot_0 & U256::from(0xFF)) != U256::ZERO)
-}
-
-/// Gets the default protocol swap fee as multiple in E6 format
-pub async fn angstrom_l2_factory_default_protocol_swap_fee_as_multiple_e6<F: StorageSlotFetcher>(
-    slot_fetcher: &F,
-    factory_address: Address,
-    block_number: Option<u64>
-) -> eyre::Result<u32> {
-    let slot_0 = angstrom_l2_factory_get_slot_0(slot_fetcher, factory_address, block_number).await?;
-    Ok(U256::to::<u32>(&((slot_0 >> 8) & U256::from(0xFFFFFF))))
-}
-
-/// Gets the default protocol tax fee in E6 format
-pub async fn angstrom_l2_factory_default_protocol_tax_fee_e6<F: StorageSlotFetcher>(
-    slot_fetcher: &F,
-    factory_address: Address,
-    block_number: Option<u64>
-) -> eyre::Result<u32> {
-    let slot_0 = angstrom_l2_factory_get_slot_0(slot_fetcher, factory_address, block_number).await?;
-    Ok(U256::to::<u32>(&((slot_0 >> 32) & U256::from(0xFFFFFF))))
+    Ok(AngstromL2FactorySlot0::from(out))
 }
 
 /// Checks if a hook is verified
@@ -133,13 +106,12 @@ pub async fn angstrom_l2_factory_all_hooks<F: StorageSlotFetcher>(
         return Ok(Vec::new());
     }
 
-    let mut hooks = Vec::with_capacity(length as usize);
-    for i in 0..length {
-        let hook = angstrom_l2_factory_all_hooks_at(slot_fetcher, factory_address, i, block_number).await?;
-        hooks.push(hook);
-    }
+    let hook_futs = futures::stream::iter(0..length)
+        .map(|i| angstrom_l2_factory_all_hooks_at(slot_fetcher, factory_address, i, block_number))
+        .buffer_unordered(10)
+        .collect::<FuturesUnordered<_>>();
 
-    Ok(hooks)
+    hook_futs.await.into_iter().collect()
 }
 
 /// Gets the hook address for a specific pool ID
@@ -156,5 +128,123 @@ pub async fn angstrom_l2_factory_hook_pool_id<F: StorageSlotFetcher>(
         .storage_at(factory_address, slot, block_number)
         .await?;
 
-    if hook_address == U256::ZERO { Ok(None) } else { Ok(Some(Address::from(U160::from(hook_address)))) }
+    Ok((!hook_address.is_zero()).then_some(Address::from(U160::from(hook_address))))
+}
+
+#[cfg(test)]
+mod test {
+    use alloy_primitives::{address, aliases::U24};
+
+    use super::*;
+    use crate::{angstrom::l2::ANGSTROM_L2_CONSTANTS_BASE_MAINNET, test_utils::eth_base_provider};
+
+    #[tokio::test]
+    async fn test_angstrom_l2_factory_get_slot0() {
+        let provider = eth_base_provider().await;
+        let block_number = 40426000;
+
+        let result = angstrom_l2_factory_get_slot0(
+            &provider,
+            ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
+            Some(block_number)
+        )
+        .await
+        .unwrap();
+
+        let expected = AngstromL2FactorySlot0 {
+            withdraw_only: false,
+            default_protocol_swap_fee_as_multiple_e6: U24::ZERO,
+            default_protocol_tax_fee_e6: U24::ZERO
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_factory_is_verified_hook() {
+        let provider = eth_base_provider().await;
+        let block_number = 40426000;
+
+        let hook_address = address!("0xC7F6fFDb7a058ac431b852Bc1bF00cc0Fd4c65Cf");
+
+        let result = angstrom_l2_factory_is_verified_hook(
+            &provider,
+            ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
+            hook_address,
+            Some(block_number)
+        )
+        .await
+        .unwrap();
+
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_factory_all_hooks_length() {
+        let provider = eth_base_provider().await;
+        let block_number = 40426000;
+
+        let result = angstrom_l2_factory_all_hooks_length(
+            &provider,
+            ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
+            Some(block_number)
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result, 1);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_factory_all_hooks_at() {
+        let provider = eth_base_provider().await;
+        let block_number = 40426000;
+
+        let result = angstrom_l2_factory_all_hooks_at(
+            &provider,
+            ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
+            0,
+            Some(block_number)
+        )
+        .await
+        .unwrap();
+
+        let expected_hook = address!("0xC7F6fFDb7a058ac431b852Bc1bF00cc0Fd4c65Cf");
+        assert_eq!(result, expected_hook);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_factory_all_hooks() {
+        let provider = eth_base_provider().await;
+        let block_number = 40426000;
+
+        let result = angstrom_l2_factory_all_hooks(
+            &provider,
+            ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
+            Some(block_number)
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result, vec![address!("0xC7F6fFDb7a058ac431b852Bc1bF00cc0Fd4c65Cf")]);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_factory_hook_pool_id() {
+        let provider = eth_base_provider().await;
+        let block_number = 40426000;
+
+        // Test with a non-existent pool ID - should return None
+        let non_existent_pool_id = B256::ZERO;
+        let result = angstrom_l2_factory_hook_pool_id(
+            &provider,
+            ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
+            non_existent_pool_id,
+            Some(block_number)
+        )
+        .await
+        .unwrap();
+
+        assert!(result.is_none());
+    }
 }

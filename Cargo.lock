@@ -10379,6 +10379,7 @@ dependencies = [
  "eyre",
  "futures",
  "itertools 0.14.0",
+ "op-alloy-network",
  "reth-provider",
  "reth-rpc",
  "reth-rpc-convert",
