@@ -15,15 +15,6 @@
 | poolKeys              | struct PoolKey[]                                          | 5    | 0      | 32    | src/AngstromL2.sol:AngstromL2 |
 ╰-----------------------+-----------------------------------------------------------+------+--------+-------+-------------------------------╯
 
-struct PoolRewards {
-    mapping(bytes32 uniPositionKey => Position position) positions;
-    mapping(int24 tick => uint256 growthOutsideX128) rewardGrowthOutsideX128;
-    uint256 globalGrowthX128;
-}
-
-struct Position {
-    uint256 lastGrowthInsideX128;
-}
 */
 
 use std::pin::Pin;
@@ -38,6 +29,7 @@ use futures::{Stream, StreamExt, stream::FuturesUnordered};
 
 use crate::{
     StorageSlotFetcher,
+    angstrom::l2::AngstromL2PoolFeeConfiguration,
     v4::{V4PoolKey, utils::encode_position_key}
 };
 
@@ -205,15 +197,6 @@ pub async fn angstrom_l2_last_growth_inside<F: StorageSlotFetcher>(
     Ok(growth)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AngstromL2PoolFeeConfiguration {
-    pub is_initialized:       bool,
-    pub creator_tax_fee_e6:   u32,
-    pub protocol_tax_fee_e6:  u32,
-    pub creator_swap_fee_e6:  u32,
-    pub protocol_swap_fee_e6: u32
-}
-
 pub fn angstrom_l2_pool_fee_config_slot(pool_id: B256) -> B256 {
     keccak256((pool_id, U256::from(ANGSTROM_L2_POOL_FEE_CONFIG_SLOT)).abi_encode())
 }
@@ -230,19 +213,7 @@ pub async fn angstrom_l2_pool_fee_config<F: StorageSlotFetcher>(
         .storage_at(hook_address, config_slot, block_number)
         .await?;
 
-    let is_initialized = (packed_config & U256::from(1)) != U256::ZERO;
-    let creator_tax_fee_e6 = U256::to::<u32>(&((packed_config >> 8) & U256::from(0xFFFFFF)));
-    let protocol_tax_fee_e6 = U256::to::<u32>(&((packed_config >> 32) & U256::from(0xFFFFFF)));
-    let creator_swap_fee_e6 = U256::to::<u32>(&((packed_config >> 56) & U256::from(0xFFFFFF)));
-    let protocol_swap_fee_e6 = U256::to::<u32>(&((packed_config >> 80) & U256::from(0xFFFFFF)));
-
-    Ok(AngstromL2PoolFeeConfiguration {
-        is_initialized,
-        creator_tax_fee_e6,
-        protocol_tax_fee_e6,
-        creator_swap_fee_e6,
-        protocol_swap_fee_e6
-    })
+    Ok(AngstromL2PoolFeeConfiguration::from(packed_config))
 }
 
 /// Checks if a pool is initialized
@@ -276,4 +247,166 @@ pub async fn angstrom_l2_total_tax_fee_rate_e6<F: StorageSlotFetcher>(
 ) -> eyre::Result<u32> {
     let config = angstrom_l2_pool_fee_config(slot_fetcher, hook_address, pool_id, block_number).await?;
     Ok(config.creator_tax_fee_e6 + config.protocol_tax_fee_e6)
+}
+
+#[cfg(test)]
+mod test {
+    use alloy_primitives::{address, aliases::I24, b256};
+    use futures::StreamExt;
+
+    use super::*;
+    use crate::{angstrom::l2::ANGSTROM_L2_CONSTANTS_BASE_MAINNET, test_utils::eth_base_provider};
+
+    const HOOK_ADDRESS: Address = address!("0xC7F6fFDb7a058ac431b852Bc1bF00cc0Fd4c65Cf");
+    const POOL_ID: B256 = b256!("0x343ee3036741f45b5512ebf7ad0d8ab259dbb8e5a38ff0d19022da176ee04574");
+    const BLOCK_NUMBER: u64 = 40426000;
+
+    #[tokio::test]
+    async fn test_angstrom_l2_pool_keys_stream() {
+        let provider = eth_base_provider().await;
+
+        let stream = angstrom_l2_pool_keys_stream(&provider, HOOK_ADDRESS, Some(BLOCK_NUMBER))
+            .await
+            .unwrap();
+
+        assert!(stream.is_some());
+        let mut stream = stream.unwrap();
+
+        let first_key = stream.next().await;
+        assert!(first_key.is_some());
+        let pool_key = first_key.unwrap().unwrap();
+
+        assert_eq!(pool_key.hooks, HOOK_ADDRESS);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_pool_keys_filter() {
+        let provider = eth_base_provider().await;
+
+        let result =
+            angstrom_l2_pool_keys_filter(&provider, HOOK_ADDRESS, Some(BLOCK_NUMBER), |key| key.hooks == HOOK_ADDRESS, 1)
+                .await
+                .unwrap();
+
+        assert!(!result.is_empty());
+        assert_eq!(result[0].hooks, HOOK_ADDRESS);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_global_growth() {
+        let provider = eth_base_provider().await;
+
+        let result = angstrom_l2_global_growth(&provider, HOOK_ADDRESS, POOL_ID, Some(BLOCK_NUMBER))
+            .await
+            .unwrap();
+
+        assert_eq!(result, U256::ZERO);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_tick_growth_outside() {
+        let provider = eth_base_provider().await;
+
+        let tick = I24::ZERO;
+
+        let result = angstrom_l2_tick_growth_outside(&provider, HOOK_ADDRESS, POOL_ID, tick, Some(BLOCK_NUMBER))
+            .await
+            .unwrap();
+
+        assert_eq!(result, U256::ZERO);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_growth_inside() {
+        let provider = eth_base_provider().await;
+
+        let current_tick = I24::ZERO;
+        let tick_lower = I24::unchecked_from(-100);
+        let tick_upper = I24::unchecked_from(100);
+
+        let result = angstrom_l2_growth_inside(
+            &provider,
+            HOOK_ADDRESS,
+            POOL_ID,
+            current_tick,
+            tick_lower,
+            tick_upper,
+            Some(BLOCK_NUMBER)
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result, U256::ZERO);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_last_growth_inside() {
+        let provider = eth_base_provider().await;
+
+        let position_manager = ANGSTROM_L2_CONSTANTS_BASE_MAINNET
+            .uniswap_constants()
+            .position_manager();
+        let token_id = U256::from(1);
+        let tick_lower = I24::unchecked_from(-100);
+        let tick_upper = I24::unchecked_from(100);
+
+        let result = angstrom_l2_last_growth_inside(
+            &provider,
+            HOOK_ADDRESS,
+            position_manager,
+            POOL_ID,
+            token_id,
+            tick_lower,
+            tick_upper,
+            Some(BLOCK_NUMBER)
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result, U256::ZERO);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_pool_fee_config() {
+        let provider = eth_base_provider().await;
+
+        let result = angstrom_l2_pool_fee_config(&provider, HOOK_ADDRESS, POOL_ID, Some(BLOCK_NUMBER))
+            .await
+            .unwrap();
+
+        assert!(!result.is_initialized);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_is_pool_initialized() {
+        let provider = eth_base_provider().await;
+
+        let result = angstrom_l2_is_pool_initialized(&provider, HOOK_ADDRESS, POOL_ID, Some(BLOCK_NUMBER))
+            .await
+            .unwrap();
+
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_total_swap_fee_rate_e6() {
+        let provider = eth_base_provider().await;
+
+        let result = angstrom_l2_total_swap_fee_rate_e6(&provider, HOOK_ADDRESS, POOL_ID, Some(BLOCK_NUMBER))
+            .await
+            .unwrap();
+
+        assert_eq!(result, 0);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_total_tax_fee_rate_e6() {
+        let provider = eth_base_provider().await;
+
+        let result = angstrom_l2_total_tax_fee_rate_e6(&provider, HOOK_ADDRESS, POOL_ID, Some(BLOCK_NUMBER))
+            .await
+            .unwrap();
+
+        assert_eq!(result, 0);
+    }
 }

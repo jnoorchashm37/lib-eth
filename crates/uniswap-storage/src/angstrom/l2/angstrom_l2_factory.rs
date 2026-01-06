@@ -15,8 +15,6 @@
 | hookPoolIds                        | mapping(PoolId => contract AngstromL2) | 3    | 0      | 32    | src/AngstromL2Factory.sol:AngstromL2Factory |
 ╰------------------------------------+----------------------------------------+------+--------+-------+---------------------------------------------╯
 
-AngstromL2 is `Address`
-PoolId is `B256`
 
 */
 
@@ -115,7 +113,7 @@ pub async fn angstrom_l2_factory_all_hooks<F: StorageSlotFetcher>(
 }
 
 /// Gets the hook address for a specific pool ID
-pub async fn angstrom_l2_factory_hook_pool_id<F: StorageSlotFetcher>(
+pub async fn angstrom_l2_factory_hook_address_for_pool_id<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     factory_address: Address,
     pool_id: B256,
@@ -133,20 +131,23 @@ pub async fn angstrom_l2_factory_hook_pool_id<F: StorageSlotFetcher>(
 
 #[cfg(test)]
 mod test {
-    use alloy_primitives::{address, aliases::U24};
+    use alloy_primitives::{address, aliases::U24, b256};
 
     use super::*;
     use crate::{angstrom::l2::ANGSTROM_L2_CONSTANTS_BASE_MAINNET, test_utils::eth_base_provider};
 
+    const HOOK_ADDRESS: Address = address!("0xC7F6fFDb7a058ac431b852Bc1bF00cc0Fd4c65Cf");
+    const POOL_ID: B256 = b256!("0x343ee3036741f45b5512ebf7ad0d8ab259dbb8e5a38ff0d19022da176ee04574");
+    const BLOCK_NUMBER: u64 = 40426000;
+
     #[tokio::test]
     async fn test_angstrom_l2_factory_get_slot0() {
         let provider = eth_base_provider().await;
-        let block_number = 40426000;
 
         let result = angstrom_l2_factory_get_slot0(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
-            Some(block_number)
+            Some(BLOCK_NUMBER)
         )
         .await
         .unwrap();
@@ -163,15 +164,12 @@ mod test {
     #[tokio::test]
     async fn test_angstrom_l2_factory_is_verified_hook() {
         let provider = eth_base_provider().await;
-        let block_number = 40426000;
-
-        let hook_address = address!("0xC7F6fFDb7a058ac431b852Bc1bF00cc0Fd4c65Cf");
 
         let result = angstrom_l2_factory_is_verified_hook(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
-            hook_address,
-            Some(block_number)
+            HOOK_ADDRESS,
+            Some(BLOCK_NUMBER)
         )
         .await
         .unwrap();
@@ -182,12 +180,11 @@ mod test {
     #[tokio::test]
     async fn test_angstrom_l2_factory_all_hooks_length() {
         let provider = eth_base_provider().await;
-        let block_number = 40426000;
 
         let result = angstrom_l2_factory_all_hooks_length(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
-            Some(block_number)
+            Some(BLOCK_NUMBER)
         )
         .await
         .unwrap();
@@ -198,53 +195,48 @@ mod test {
     #[tokio::test]
     async fn test_angstrom_l2_factory_all_hooks_at() {
         let provider = eth_base_provider().await;
-        let block_number = 40426000;
 
         let result = angstrom_l2_factory_all_hooks_at(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
             0,
-            Some(block_number)
+            Some(BLOCK_NUMBER)
         )
         .await
         .unwrap();
 
-        let expected_hook = address!("0xC7F6fFDb7a058ac431b852Bc1bF00cc0Fd4c65Cf");
-        assert_eq!(result, expected_hook);
+        assert_eq!(result, HOOK_ADDRESS);
     }
 
     #[tokio::test]
     async fn test_angstrom_l2_factory_all_hooks() {
         let provider = eth_base_provider().await;
-        let block_number = 40426000;
 
         let result = angstrom_l2_factory_all_hooks(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
-            Some(block_number)
+            Some(BLOCK_NUMBER)
         )
         .await
         .unwrap();
 
-        assert_eq!(result, vec![address!("0xC7F6fFDb7a058ac431b852Bc1bF00cc0Fd4c65Cf")]);
+        assert_eq!(result, vec![HOOK_ADDRESS]);
     }
 
     #[tokio::test]
-    async fn test_angstrom_l2_factory_hook_pool_id() {
+    async fn test_angstrom_l2_factory_hook_address_for_pool_id() {
         let provider = eth_base_provider().await;
-        let block_number = 40426000;
 
-        // Test with a non-existent pool ID - should return None
-        let non_existent_pool_id = B256::ZERO;
-        let result = angstrom_l2_factory_hook_pool_id(
+        let result = angstrom_l2_factory_hook_address_for_pool_id(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
-            non_existent_pool_id,
-            Some(block_number)
+            POOL_ID,
+            Some(BLOCK_NUMBER)
         )
         .await
+        .unwrap()
         .unwrap();
 
-        assert!(result.is_none());
+        assert_eq!(result, HOOK_ADDRESS);
     }
 }
