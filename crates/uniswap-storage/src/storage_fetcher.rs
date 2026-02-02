@@ -109,4 +109,23 @@ mod reth_db_impls {
             Ok(state_provider.storage(address, key)?.unwrap_or_default())
         }
     }
+
+    #[async_trait::async_trait]
+    impl<N, Rpc> StorageSlotFetcher for reth_optimism_rpc::OpEthApi<N, Rpc>
+    where
+        N: RpcNodeCore,
+        Rpc: RpcConvert
+    {
+        async fn storage_at(
+            &self,
+            address: Address,
+            key: StorageKey,
+            block_number: Option<u64>
+        ) -> eyre::Result<StorageValue> {
+            let block_id = block_number.map(Into::into).unwrap_or_else(BlockId::latest);
+            let state_provider = self.provider().state_by_block_id(block_id)?;
+
+            Ok(state_provider.storage(address, key)?.unwrap_or_default())
+        }
+    }
 }

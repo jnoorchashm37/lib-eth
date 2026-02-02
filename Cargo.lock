@@ -10350,6 +10350,7 @@ dependencies = [
  "futures",
  "itertools 0.14.0",
  "op-alloy-network",
+ "reth-optimism-rpc",
  "reth-provider",
  "reth-rpc",
  "reth-rpc-convert",

@@ -21,6 +21,7 @@ alloy-network.workspace = true
 
 revm-database = { workspace = true, optional = true, features = ["alloydb"] }
 reth-provider = { workspace = true, optional = true }
+reth-optimism-rpc = { workspace = true, optional = true }
 reth-rpc = { workspace = true, optional = true }
 reth-rpc-convert = { workspace = true, optional = true }
 
