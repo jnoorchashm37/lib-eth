@@ -1,21 +1,23 @@
+use std::sync::Arc;
+
 use alloy_primitives::{Address, B256, U256};
-use reth_provider::StateProvider;
+use reth_provider::StateProviderBox;
 use reth_revm::database::StateProviderDatabase;
 use revm::{
     DatabaseRef,
-    bytecode::{LegacyAnalyzedBytecode, eip7702::Eip7702Bytecode},
+    bytecode::LegacyAnalyzedBytecode,
     context_interface::DBErrorMarker,
     state::{AccountInfo, Bytecode}
 };
 
-pub struct RethLibmdbxDatabaseRef(StateProviderDatabase<Box<dyn StateProvider>>);
+pub struct RethLibmdbxDatabaseRef(StateProviderDatabase<StateProviderBox>);
 
 impl RethLibmdbxDatabaseRef {
-    pub fn new(this: StateProviderDatabase<Box<dyn StateProvider>>) -> Self {
+    pub fn new(this: StateProviderDatabase<StateProviderBox>) -> Self {
         Self(this)
     }
 
-    pub fn state_provider_ref(&self) -> &StateProviderDatabase<Box<dyn StateProvider>> {
+    pub fn state_provider_ref(&self) -> &StateProviderDatabase<StateProviderBox> {
         &self.0
     }
 }
@@ -28,10 +30,11 @@ impl DatabaseRef for RethLibmdbxDatabaseRef {
             .map_err(RevmUtilError::as_value)?
             .map(|acct| {
                 Ok::<_, Self::Error>(AccountInfo {
-                    balance:   acct.balance,
-                    nonce:     acct.nonce,
-                    code_hash: acct.code_hash,
-                    code:      acct.code.map(change_bytecode).transpose()?
+                    account_id: acct.account_id,
+                    balance:    acct.balance,
+                    nonce:      acct.nonce,
+                    code_hash:  acct.code_hash,
+                    code:       acct.code.map(change_bytecode).transpose()?
                 })
             })
             .transpose()
@@ -53,17 +56,13 @@ impl DatabaseRef for RethLibmdbxDatabaseRef {
 fn change_bytecode(bytes: reth_revm::bytecode::Bytecode) -> eyre::Result<Bytecode> {
     let new_bytecode = match bytes {
         reth_revm::bytecode::Bytecode::LegacyAnalyzed(legacy_analyzed_bytecode) => {
-            Bytecode::LegacyAnalyzed(LegacyAnalyzedBytecode::new(
+            Bytecode::LegacyAnalyzed(Arc::new(LegacyAnalyzedBytecode::new(
                 legacy_analyzed_bytecode.bytecode().clone(),
                 legacy_analyzed_bytecode.original_len(),
                 legacy_analyzed_bytecode.jump_table().clone()
-            ))
+            )))
         }
-        reth_revm::bytecode::Bytecode::Eip7702(eip7702_bytecode) => Bytecode::Eip7702(Eip7702Bytecode {
-            delegated_address: eip7702_bytecode.delegated_address,
-            version:           eip7702_bytecode.version,
-            raw:               eip7702_bytecode.raw
-        })
+        reth_revm::bytecode::Bytecode::Eip7702(eip7702_bytecode) => Bytecode::Eip7702(eip7702_bytecode)
     };
 
     Ok(new_bytecode)
@@ -103,39 +102,14 @@ impl From<eyre::ErrReport> for RevmUtilError {
 #[cfg(feature = "uniswap-storage")]
 mod _uniswap_storage {
     use alloy_primitives::{Address, StorageKey, StorageValue};
-    use eth_network_exts::EthNetworkExt;
     use reth_provider::StateProvider;
-    use reth_rpc_eth_api::helpers::EthState;
-    use uniswap_storage::StorageSlotFetcher;
+    use uniswap_storage::StorageSlotFetcherSync;
 
-    use crate::{
-        reth_libmdbx::{NodeClientSpec, RethNodeClient},
-        traits::reth_revm_utils::RethLibmdbxDatabaseRef
-    };
+    use crate::traits::reth_revm_utils::RethLibmdbxDatabaseRef;
 
-    #[async_trait::async_trait]
-    impl StorageSlotFetcher for RethLibmdbxDatabaseRef {
-        async fn storage_at(&self, address: Address, key: StorageKey, _: Option<u64>) -> eyre::Result<StorageValue> {
+    impl StorageSlotFetcherSync for RethLibmdbxDatabaseRef {
+        fn storage_at(&self, address: Address, key: StorageKey, _: Option<u64>) -> eyre::Result<StorageValue> {
             Ok(self.0.storage(address, key)?.unwrap_or_default())
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl<Ext: EthNetworkExt> StorageSlotFetcher for RethNodeClient<Ext>
-    where
-        Ext::RethNode: NodeClientSpec
-    {
-        async fn storage_at(
-            &self,
-            address: Address,
-            key: StorageKey,
-            block_number: Option<u64>
-        ) -> eyre::Result<StorageValue> {
-            Ok(self
-                .eth_api()
-                .storage_at(address, key.into(), block_number.map(Into::into))
-                .await?
-                .into())
         }
     }
 }
