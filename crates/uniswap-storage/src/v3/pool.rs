@@ -1,3 +1,4 @@
+use alloy_eips::BlockId;
 use alloy_primitives::{Address, StorageValue, U160, U256, aliases::I24};
 
 use crate::{StorageSlotFetcher, types::TickData, v3::utils::*};
@@ -5,11 +6,11 @@ use crate::{StorageSlotFetcher, types::TickData, v3::utils::*};
 pub async fn v3_current_tick<P: StorageSlotFetcher>(
     provider: &P,
     pool: Address,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<I24> {
     let slot0_key = U256::from(SLOT0_SLOT);
     let slot0_value = provider
-        .storage_at(pool, slot0_key.into(), block_number)
+        .storage_at(pool, slot0_key.into(), block_id)
         .await?;
 
     let tick_raw: U256 = (slot0_value >> 160) & U256::from((1u64 << 24) - 1);
@@ -27,11 +28,11 @@ pub async fn v3_current_tick<P: StorageSlotFetcher>(
 pub async fn v3_current_liquidity<P: StorageSlotFetcher>(
     provider: &P,
     pool: Address,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<U256> {
     let liquidity_key = U256::from(LIQUIDITY_SLOT);
     let liquidity = provider
-        .storage_at(pool, liquidity_key.into(), block_number)
+        .storage_at(pool, liquidity_key.into(), block_id)
         .await?;
 
     Ok(liquidity & U256::from(u128::MAX))
@@ -40,14 +41,14 @@ pub async fn v3_current_liquidity<P: StorageSlotFetcher>(
 pub async fn v3_fee_growth_global<P: StorageSlotFetcher>(
     provider: &P,
     pool: Address,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<(U256, U256)> {
     let fee_growth_global0_key = U256::from(FEE_GROWTH_GLOBAL_0X128_SLOT);
     let fee_growth_global1_key = U256::from(FEE_GROWTH_GLOBAL_1X128_SLOT);
 
     let (fee_growth_global0, fee_growth_global1) = futures::try_join!(
-        provider.storage_at(pool, fee_growth_global0_key.into(), block_number),
-        provider.storage_at(pool, fee_growth_global1_key.into(), block_number),
+        provider.storage_at(pool, fee_growth_global0_key.into(), block_id),
+        provider.storage_at(pool, fee_growth_global1_key.into(), block_id),
     )?;
 
     Ok((fee_growth_global0, fee_growth_global1))
@@ -56,11 +57,11 @@ pub async fn v3_fee_growth_global<P: StorageSlotFetcher>(
 pub async fn v3_sqrt_price_x96<P: StorageSlotFetcher>(
     provider: &P,
     pool: Address,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<U160> {
     let slot0_key = U256::from(SLOT0_SLOT);
     let slot0_value = provider
-        .storage_at(pool, slot0_key.into(), block_number)
+        .storage_at(pool, slot0_key.into(), block_id)
         .await?;
 
     Ok(U160::from(slot0_value & U256::from(U160::MAX)))
@@ -70,7 +71,7 @@ pub async fn v3_tick_data<P: StorageSlotFetcher>(
     provider: &P,
     pool: Address,
     tick: I24,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<TickData> {
     let tick_slot = v3_tick_slot(tick);
     let tick_slot_base = U256::from_be_slice(tick_slot.as_slice());
@@ -88,10 +89,10 @@ pub async fn v3_tick_data<P: StorageSlotFetcher>(
         StorageValue,
         StorageValue
     ) = futures::try_join!(
-        provider.storage_at(pool, slot0.into(), block_number),
-        provider.storage_at(pool, slot1.into(), block_number),
-        provider.storage_at(pool, slot2.into(), block_number),
-        provider.storage_at(pool, slot3.into(), block_number)
+        provider.storage_at(pool, slot0.into(), block_id),
+        provider.storage_at(pool, slot1.into(), block_id),
+        provider.storage_at(pool, slot2.into(), block_id),
+        provider.storage_at(pool, slot3.into(), block_id)
     )?;
 
     let liquidity_gross_u128 = (slot0_data & U256::from(u128::MAX)).to::<u128>();
@@ -113,10 +114,10 @@ async fn v3_tick_bitmap_from_word<P: StorageSlotFetcher>(
     provider: &P,
     pool: Address,
     word_pos: i16,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<U256> {
     let bitmap_slot = v3_tick_bitmap_slot(word_pos);
-    let bitmap_value = provider.storage_at(pool, bitmap_slot, block_number).await?;
+    let bitmap_value = provider.storage_at(pool, bitmap_slot, block_id).await?;
     Ok(bitmap_value)
 }
 
@@ -126,10 +127,10 @@ pub async fn v3_next_initialized_tick_within_one_word<P: StorageSlotFetcher>(
     tick: I24,
     tick_spacing: I24,
     lte: bool,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<(I24, bool)> {
     let (compressed, (word_pos, bit_pos)) = position_compressed_tick(tick, tick_spacing, lte);
-    let bitmap = v3_tick_bitmap_from_word::<P>(provider, pool, word_pos, block_number).await?;
+    let bitmap = v3_tick_bitmap_from_word::<P>(provider, pool, word_pos, block_id).await?;
     if lte {
         let mask = (U256::ONE << bit_pos) - U256::ONE + (U256::ONE << bit_pos);
         let masked = bitmap & mask;
@@ -158,6 +159,7 @@ pub async fn v3_next_initialized_tick_within_one_word<P: StorageSlotFetcher>(
 
 #[cfg(test)]
 mod tests {
+    use alloy_eips::BlockId;
     use alloy_primitives::address;
     use alloy_provider::RootProvider;
 
@@ -172,7 +174,7 @@ mod tests {
 
         let provider = eth_provider().await;
 
-        let result = v3_current_tick::<RootProvider>(&provider, POOL_ADDRESS, Some(block_number))
+        let result = v3_current_tick::<RootProvider>(&provider, POOL_ADDRESS, Some(BlockId::number(block_number)))
             .await
             .unwrap();
         let expected = I24::unchecked_from(193335);
@@ -186,7 +188,7 @@ mod tests {
 
         let provider = eth_provider().await;
 
-        let result = v3_current_liquidity::<RootProvider>(&provider, POOL_ADDRESS, Some(block_number))
+        let result = v3_current_liquidity::<RootProvider>(&provider, POOL_ADDRESS, Some(BlockId::number(block_number)))
             .await
             .unwrap();
         let expected = U256::from(2088207984683946894_u128);
@@ -200,7 +202,7 @@ mod tests {
 
         let provider = eth_provider().await;
 
-        let result = v3_fee_growth_global::<RootProvider>(&provider, POOL_ADDRESS, Some(block_number))
+        let result = v3_fee_growth_global::<RootProvider>(&provider, POOL_ADDRESS, Some(BlockId::number(block_number)))
             .await
             .unwrap();
         let expected = (
@@ -217,7 +219,7 @@ mod tests {
 
         let provider = eth_provider().await;
 
-        let result = v3_sqrt_price_x96::<RootProvider>(&provider, POOL_ADDRESS, Some(block_number))
+        let result = v3_sqrt_price_x96::<RootProvider>(&provider, POOL_ADDRESS, Some(BlockId::number(block_number)))
             .await
             .unwrap();
         let expected = U160::from(1249291445425461764422472060708837_u128);
@@ -232,7 +234,7 @@ mod tests {
         let provider = eth_provider().await;
 
         let tick = I24::unchecked_from(193320);
-        let result = v3_tick_data::<RootProvider>(&provider, POOL_ADDRESS, tick, Some(block_number))
+        let result = v3_tick_data::<RootProvider>(&provider, POOL_ADDRESS, tick, Some(BlockId::number(block_number)))
             .await
             .unwrap();
         let expected = TickData {
@@ -260,7 +262,7 @@ mod tests {
             tick,
             I24::unchecked_from(10),
             false,
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();
@@ -282,7 +284,7 @@ mod tests {
             tick,
             I24::unchecked_from(10),
             true,
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();

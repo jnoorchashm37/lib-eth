@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use alloy_eips::BlockId;
 use alloy_primitives::{Address, B256, U256, aliases::I24, keccak256};
 use alloy_sol_types::SolValue;
 use futures::StreamExt;
@@ -39,7 +40,7 @@ pub async fn pool_manager_pool_tick_fee_growth_outside<F: StorageSlotFetcher>(
     pool_manager_address: Address,
     pool_id: B256,
     tick: I24,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<(U256, U256)> {
     let pool_tick_slot = pool_manager_pool_tick_slot(pool_id.into(), tick);
     let pool_tick_slot_base = U256::from_be_slice(pool_tick_slot.as_slice());
@@ -50,8 +51,8 @@ pub async fn pool_manager_pool_tick_fee_growth_outside<F: StorageSlotFetcher>(
         pool_tick_slot_base + U256::from(POOL_MANAGER_POOL_TICK_FEE_GROWTH_OUTSIDE1_X128_SLOT_OFFSET);
 
     let (fee_growth_outside0_x128, fee_growth_outside1_x128) = futures::try_join!(
-        slot_fetcher.storage_at(pool_manager_address, fee_growth_outside0_x128_slot.into(), block_number),
-        slot_fetcher.storage_at(pool_manager_address, fee_growth_outside1_x128_slot.into(), block_number)
+        slot_fetcher.storage_at(pool_manager_address, fee_growth_outside0_x128_slot.into(), block_id),
+        slot_fetcher.storage_at(pool_manager_address, fee_growth_outside1_x128_slot.into(), block_id)
     )?;
 
     Ok((fee_growth_outside0_x128, fee_growth_outside1_x128))
@@ -64,7 +65,7 @@ pub async fn pool_manager_load_tick_map<F: StorageSlotFetcher>(
     tick_spacing: I24,
     start_tick: Option<I24>,
     end_tick: Option<I24>,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<HashMap<I24, TickData>> {
     let start_tick = start_tick
         .map(|t| normalize_tick(t, tick_spacing))
@@ -77,7 +78,7 @@ pub async fn pool_manager_load_tick_map<F: StorageSlotFetcher>(
     let mut initialized_ticks = Vec::new();
     while ct <= end_tick {
         let (_, tick) =
-            next_tick_gt(slot_fetcher, pool_manager_address, tick_spacing, pool_id, ct, true, block_number).await?;
+            next_tick_gt(slot_fetcher, pool_manager_address, tick_spacing, pool_id, ct, true, block_id).await?;
         initialized_ticks.push(tick);
         ct = tick;
     }
@@ -86,7 +87,7 @@ pub async fn pool_manager_load_tick_map<F: StorageSlotFetcher>(
         .map(async |tick| {
             let tick = I24::unchecked_from(tick);
 
-            pool_manager_load_tick_data(slot_fetcher, pool_manager_address, tick_spacing, pool_id, tick, block_number)
+            pool_manager_load_tick_data(slot_fetcher, pool_manager_address, tick_spacing, pool_id, tick, block_id)
                 .await
                 .map(|d| (tick, d))
         })
@@ -107,7 +108,7 @@ pub async fn pool_manager_load_tick_data<F: StorageSlotFetcher>(
     tick_spacing: I24,
     pool_id: B256,
     tick: I24,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<TickData> {
     let pool_tick_slot = pool_manager_pool_tick_slot(pool_id.into(), tick);
     let pool_tick_slot_base = U256::from_be_slice(pool_tick_slot.as_slice());
@@ -119,10 +120,10 @@ pub async fn pool_manager_load_tick_data<F: StorageSlotFetcher>(
         pool_tick_slot_base + U256::from(POOL_MANAGER_POOL_TICK_FEE_GROWTH_OUTSIDE1_X128_SLOT_OFFSET);
 
     let (liquidity, fee_growth_outside0_x128, fee_growth_outside1_x128, is_initialized) = futures::try_join!(
-        slot_fetcher.storage_at(pool_manager_address, liquidity_slot.into(), block_number),
-        slot_fetcher.storage_at(pool_manager_address, fee_growth_outside0_x128_slot.into(), block_number),
-        slot_fetcher.storage_at(pool_manager_address, fee_growth_outside1_x128_slot.into(), block_number),
-        tick_initialized(slot_fetcher, pool_manager_address, tick_spacing, pool_id, tick, block_number,)
+        slot_fetcher.storage_at(pool_manager_address, liquidity_slot.into(), block_id),
+        slot_fetcher.storage_at(pool_manager_address, fee_growth_outside0_x128_slot.into(), block_id),
+        slot_fetcher.storage_at(pool_manager_address, fee_growth_outside1_x128_slot.into(), block_id),
+        tick_initialized(slot_fetcher, pool_manager_address, tick_spacing, pool_id, tick, block_id,)
     )?;
 
     let liquidity_bytes: [u8; 32] = liquidity.to_be_bytes();
@@ -139,6 +140,7 @@ pub async fn pool_manager_load_tick_data<F: StorageSlotFetcher>(
 
 #[cfg(test)]
 mod tests {
+    use alloy_eips::BlockId;
     use alloy_primitives::aliases::U24;
 
     use super::*;
@@ -166,7 +168,7 @@ mod tests {
             UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
             pool_key.into(),
             I24::unchecked_from(191000),
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();
@@ -200,7 +202,7 @@ mod tests {
             tick_spacing,
             Some(I24::unchecked_from(194000)),
             Some(I24::unchecked_from(195000)),
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();
@@ -228,7 +230,7 @@ mod tests {
             I24::unchecked_from(10),
             pool_key.into(),
             tick,
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();

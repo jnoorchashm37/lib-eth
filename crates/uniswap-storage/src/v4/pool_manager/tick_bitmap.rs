@@ -1,3 +1,4 @@
+use alloy_eips::BlockId;
 use alloy_primitives::{Address, B256, I64, U256, aliases::I24};
 use serde::{Deserialize, Serialize};
 
@@ -101,13 +102,13 @@ pub async fn next_initialized_tick_within_one_word<F: StorageSlotFetcher>(
     tick: I24,
     tick_spacing: I24,
     lte: bool,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<(I24, bool)> {
     let mut compressed = compress_tick(tick, tick_spacing);
     if lte {
         let (word_pos, bit_pos) = _tick_position_from_compressed(compressed);
         let mask = U256::MAX >> (U256::from(u8::MAX) - U256::from(bit_pos));
-        let masked = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_number)
+        let masked = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_id)
             .await?
             .0
             & mask;
@@ -123,7 +124,7 @@ pub async fn next_initialized_tick_within_one_word<F: StorageSlotFetcher>(
         compressed += I24::ONE;
         let (word_pos, bit_pos) = _tick_position_from_compressed(compressed);
         let mask = !((U256::ONE << bit_pos) - U256::ONE);
-        let masked = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_number)
+        let masked = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_id)
             .await?
             .0
             & mask;
@@ -167,12 +168,12 @@ pub async fn tick_bitmap_from_word<F: StorageSlotFetcher>(
     pool_manager_address: Address,
     pool_id: B256,
     word_pos: i16,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<TickBitmap> {
     let pool_tick_bitmap_slot = pool_manager_pool_tick_bitmap_slot(pool_id.into(), word_pos);
 
     let tick_bitmap = slot_fetcher
-        .storage_at(pool_manager_address, pool_tick_bitmap_slot, block_number)
+        .storage_at(pool_manager_address, pool_tick_bitmap_slot, block_id)
         .await?;
 
     Ok(TickBitmap(tick_bitmap))
@@ -184,11 +185,11 @@ pub async fn tick_bitmap_from_tick<F: StorageSlotFetcher>(
     pool_id: B256,
     tick: I24,
     tick_spacing: I24,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<TickBitmap> {
     let (word_pos, _) = tick_position_from_compressed(tick, tick_spacing);
 
-    tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_number).await
+    tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_id).await
 }
 
 pub async fn tick_initialized<F: StorageSlotFetcher>(
@@ -197,10 +198,10 @@ pub async fn tick_initialized<F: StorageSlotFetcher>(
     tick_spacing: I24,
     pool_id: B256,
     tick: I24,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<bool> {
     let (word_pos, bit_pos) = tick_position_from_compressed(tick, tick_spacing);
-    let tick_bitmap = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_number).await?;
+    let tick_bitmap = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_id).await?;
 
     Ok(tick_bitmap.is_initialized(bit_pos))
 }
@@ -212,14 +213,14 @@ pub async fn next_tick_gt<F: StorageSlotFetcher>(
     pool_id: B256,
     tick: I24,
     initialized_only: bool,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<(bool, I24)> {
     if is_tick_at_bounds(tick, tick_spacing, false) {
         return Ok((false, tick));
     }
 
     let (word_pos, bit_pos) = tick_position_from_compressed_inequality(tick, tick_spacing, I24::unchecked_from(1));
-    let tick_bitmap = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_number).await?;
+    let tick_bitmap = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_id).await?;
 
     let (is_initialized, next_bit_pos) = tick_bitmap.next_bit_pos_gte(bit_pos);
     let next_tick = tick_from_word_and_bit_pos(word_pos, next_bit_pos, tick_spacing);
@@ -233,7 +234,7 @@ pub async fn next_tick_gt<F: StorageSlotFetcher>(
             pool_id,
             next_tick,
             initialized_only,
-            block_number
+            block_id
         ))
         .await
     }
@@ -246,14 +247,14 @@ pub async fn next_tick_lt<F: StorageSlotFetcher>(
     pool_id: B256,
     tick: I24,
     initialized_only: bool,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<(bool, I24)> {
     if is_tick_at_bounds(tick, tick_spacing, true) {
         return Ok((false, tick));
     }
 
     let (word_pos, bit_pos) = tick_position_from_compressed_inequality(tick, tick_spacing, I24::unchecked_from(-1));
-    let tick_bitmap = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_number).await?;
+    let tick_bitmap = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_id).await?;
 
     let (is_initialized, next_bit_pos) = tick_bitmap.next_bit_pos_lte(bit_pos);
     let next_tick = tick_from_word_and_bit_pos(word_pos, next_bit_pos, tick_spacing);
@@ -267,7 +268,7 @@ pub async fn next_tick_lt<F: StorageSlotFetcher>(
             pool_id,
             next_tick,
             initialized_only,
-            block_number
+            block_id
         ))
         .await
     }
@@ -280,14 +281,14 @@ pub async fn next_tick_le<F: StorageSlotFetcher>(
     pool_id: B256,
     tick: I24,
     initialized_only: bool,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<(bool, I24)> {
     if is_tick_at_bounds(tick, tick_spacing, true) {
         return Ok((false, tick));
     }
 
     let (word_pos, bit_pos) = tick_position_from_compressed(tick, tick_spacing);
-    let tick_bitmap = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_number).await?;
+    let tick_bitmap = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_id).await?;
 
     let (is_initialized, next_bit_pos) = tick_bitmap.next_bit_pos_lte(bit_pos);
     let next_tick = tick_from_word_and_bit_pos(word_pos, next_bit_pos, tick_spacing);
@@ -301,7 +302,7 @@ pub async fn next_tick_le<F: StorageSlotFetcher>(
             pool_id,
             next_tick,
             initialized_only,
-            block_number
+            block_id
         ))
         .await
     }
@@ -318,6 +319,7 @@ fn is_tick_at_bounds(tick: I24, tick_spacing: I24, is_decreasing: bool) -> bool 
 
 #[cfg(test)]
 mod tests {
+    use alloy_eips::BlockId;
     use alloy_primitives::{aliases::U24, b256};
 
     use super::*;
@@ -391,7 +393,7 @@ mod tests {
         let pool_id = pool_key.into();
 
         let results =
-            tick_bitmap_from_word(&provider, UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(), pool_id, 346, Some(block_number))
+            tick_bitmap_from_word(&provider, UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(), pool_id, 346, Some(BlockId::number(block_number)))
                 .await
                 .unwrap();
         assert_eq!(results.0, U256::from_str_radix("2854495385411919762116571938898990272765493248", 10).unwrap());
@@ -419,7 +421,7 @@ mod tests {
             tick_spacing,
             pool_id,
             tick,
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();
@@ -449,7 +451,7 @@ mod tests {
             pool_id,
             tick,
             true,
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();
@@ -480,7 +482,7 @@ mod tests {
             pool_id,
             tick,
             true,
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();
@@ -511,7 +513,7 @@ mod tests {
             pool_id,
             tick,
             true,
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();
@@ -535,7 +537,7 @@ mod tests {
             tick,
             tick_spacing,
             false,
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();
@@ -560,7 +562,7 @@ mod tests {
             tick,
             tick_spacing,
             true,
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();

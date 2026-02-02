@@ -19,6 +19,7 @@
 
 use std::pin::Pin;
 
+use alloy_eips::BlockId;
 use alloy_primitives::{
     Address, B256, U160, U256,
     aliases::{I24, U24},
@@ -40,11 +41,11 @@ pub const ANGSTROM_L2_POOL_KEYS_SLOT: u64 = 5;
 pub async fn angstrom_l2_pool_keys_stream<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     hook_address: Address,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<Option<Pin<Box<dyn Stream<Item = eyre::Result<V4PoolKey>> + Send + '_>>>> {
     let length_slot = U256::from(ANGSTROM_L2_POOL_KEYS_SLOT);
     let array_length = slot_fetcher
-        .storage_at(hook_address, length_slot.into(), block_number)
+        .storage_at(hook_address, length_slot.into(), block_id)
         .await?;
 
     let length = array_length.to::<u64>();
@@ -62,7 +63,7 @@ pub async fn angstrom_l2_pool_keys_stream<F: StorageSlotFetcher>(
 
             let futures = (0..5).map(|j| {
                 let slot = base_slot_value + U256::from(element_offset) + U256::from(j);
-                slot_fetcher.storage_at(hook_address, slot.into(), block_number)
+                slot_fetcher.storage_at(hook_address, slot.into(), block_id)
             });
 
             let slots: Vec<U256> = futures::future::try_join_all(futures).await?;
@@ -85,14 +86,14 @@ pub async fn angstrom_l2_pool_keys_stream<F: StorageSlotFetcher>(
 pub async fn angstrom_l2_pool_keys_filter<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     hook_address: Address,
-    block_number: Option<u64>,
+    block_id: Option<BlockId>,
     search_fn: impl Fn(V4PoolKey) -> bool,
     find_count: usize
 ) -> eyre::Result<Vec<V4PoolKey>> {
     assert_ne!(find_count, 0);
 
     let mut pool_keys = Vec::new();
-    if let Some(mut key_stream) = angstrom_l2_pool_keys_stream(slot_fetcher, hook_address, block_number).await? {
+    if let Some(mut key_stream) = angstrom_l2_pool_keys_stream(slot_fetcher, hook_address, block_id).await? {
         while let Some(pool_key_res) = key_stream.next().await {
             let pool_key = pool_key_res?;
             if search_fn(pool_key) {
@@ -123,12 +124,12 @@ pub async fn angstrom_l2_growth_inside<F: StorageSlotFetcher>(
     current_pool_tick: I24,
     tick_lower: I24,
     tick_upper: I24,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<U256> {
     let (lower_growth, upper_growth, global_growth) = futures::try_join!(
-        angstrom_l2_tick_growth_outside(slot_fetcher, hook_address, pool_id, tick_lower, block_number,),
-        angstrom_l2_tick_growth_outside(slot_fetcher, hook_address, pool_id, tick_upper, block_number,),
-        angstrom_l2_global_growth(slot_fetcher, hook_address, pool_id, block_number,),
+        angstrom_l2_tick_growth_outside(slot_fetcher, hook_address, pool_id, tick_lower, block_id,),
+        angstrom_l2_tick_growth_outside(slot_fetcher, hook_address, pool_id, tick_upper, block_id,),
+        angstrom_l2_global_growth(slot_fetcher, hook_address, pool_id, block_id,),
     )?;
 
     let rewards = if current_pool_tick < tick_lower {
@@ -148,11 +149,11 @@ pub async fn angstrom_l2_global_growth<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     hook_address: Address,
     pool_id: B256,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<U256> {
     let pool_rewards_slot_base = U256::from_be_bytes(angstrom_l2_pool_rewards_slot(pool_id).0);
     let global_growth = slot_fetcher
-        .storage_at(hook_address, (pool_rewards_slot_base + U256::from(2)).into(), block_number)
+        .storage_at(hook_address, (pool_rewards_slot_base + U256::from(2)).into(), block_id)
         .await?;
 
     Ok(global_growth)
@@ -163,7 +164,7 @@ pub async fn angstrom_l2_tick_growth_outside<F: StorageSlotFetcher>(
     hook_address: Address,
     pool_id: B256,
     tick: I24,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<U256> {
     let pool_rewards_slot_base = U256::from_be_bytes(angstrom_l2_pool_rewards_slot(pool_id).0);
     let tick_mapping_slot = pool_rewards_slot_base + U256::from(1);
@@ -171,7 +172,7 @@ pub async fn angstrom_l2_tick_growth_outside<F: StorageSlotFetcher>(
     let tick_growth_slot = keccak256((tick, tick_mapping_slot).abi_encode());
 
     let growth_outside = slot_fetcher
-        .storage_at(hook_address, tick_growth_slot, block_number)
+        .storage_at(hook_address, tick_growth_slot, block_id)
         .await?;
 
     Ok(growth_outside)
@@ -185,13 +186,13 @@ pub async fn angstrom_l2_last_growth_inside<F: StorageSlotFetcher>(
     position_token_id: U256,
     tick_lower: I24,
     tick_upper: I24,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<U256> {
     let position_key = encode_position_key(position_manager_address, position_token_id, tick_lower, tick_upper);
     let position_slot = U256::from_be_bytes(angstrom_l2_position_slot(pool_id, position_key).0);
 
     let growth = slot_fetcher
-        .storage_at(hook_address, position_slot.into(), block_number)
+        .storage_at(hook_address, position_slot.into(), block_id)
         .await?;
 
     Ok(growth)
@@ -205,12 +206,12 @@ pub async fn angstrom_l2_pool_fee_config<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     hook_address: Address,
     pool_id: B256,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<AngstromL2PoolFeeConfiguration> {
     let config_slot = angstrom_l2_pool_fee_config_slot(pool_id);
 
     let packed_config = slot_fetcher
-        .storage_at(hook_address, config_slot, block_number)
+        .storage_at(hook_address, config_slot, block_id)
         .await?;
 
     Ok(AngstromL2PoolFeeConfiguration::from(packed_config))
@@ -221,9 +222,9 @@ pub async fn angstrom_l2_is_pool_initialized<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     hook_address: Address,
     pool_id: B256,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<bool> {
-    let config = angstrom_l2_pool_fee_config(slot_fetcher, hook_address, pool_id, block_number).await?;
+    let config = angstrom_l2_pool_fee_config(slot_fetcher, hook_address, pool_id, block_id).await?;
     Ok(config.is_initialized)
 }
 
@@ -232,9 +233,9 @@ pub async fn angstrom_l2_total_swap_fee_rate_e6<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     hook_address: Address,
     pool_id: B256,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<u32> {
-    let config = angstrom_l2_pool_fee_config(slot_fetcher, hook_address, pool_id, block_number).await?;
+    let config = angstrom_l2_pool_fee_config(slot_fetcher, hook_address, pool_id, block_id).await?;
     Ok(config.creator_swap_fee_e6 + config.protocol_swap_fee_e6)
 }
 
@@ -243,14 +244,15 @@ pub async fn angstrom_l2_total_tax_fee_rate_e6<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     hook_address: Address,
     pool_id: B256,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<u32> {
-    let config = angstrom_l2_pool_fee_config(slot_fetcher, hook_address, pool_id, block_number).await?;
+    let config = angstrom_l2_pool_fee_config(slot_fetcher, hook_address, pool_id, block_id).await?;
     Ok(config.creator_tax_fee_e6 + config.protocol_tax_fee_e6)
 }
 
 #[cfg(test)]
 mod test {
+    use alloy_eips::BlockId;
     use alloy_primitives::{address, aliases::I24, b256};
     use futures::StreamExt;
 
@@ -265,7 +267,7 @@ mod test {
     async fn test_angstrom_l2_pool_keys_stream() {
         let provider = eth_base_provider().await;
 
-        let stream = angstrom_l2_pool_keys_stream(&provider, HOOK_ADDRESS, Some(BLOCK_NUMBER))
+        let stream = angstrom_l2_pool_keys_stream(&provider, HOOK_ADDRESS, Some(BlockId::number(BLOCK_NUMBER)))
             .await
             .unwrap();
 
@@ -284,7 +286,7 @@ mod test {
         let provider = eth_base_provider().await;
 
         let result =
-            angstrom_l2_pool_keys_filter(&provider, HOOK_ADDRESS, Some(BLOCK_NUMBER), |key| key.hooks == HOOK_ADDRESS, 1)
+            angstrom_l2_pool_keys_filter(&provider, HOOK_ADDRESS, Some(BlockId::number(BLOCK_NUMBER)), |key| key.hooks == HOOK_ADDRESS, 1)
                 .await
                 .unwrap();
 
@@ -296,7 +298,7 @@ mod test {
     async fn test_angstrom_l2_global_growth() {
         let provider = eth_base_provider().await;
 
-        let result = angstrom_l2_global_growth(&provider, HOOK_ADDRESS, POOL_ID, Some(BLOCK_NUMBER))
+        let result = angstrom_l2_global_growth(&provider, HOOK_ADDRESS, POOL_ID, Some(BlockId::number(BLOCK_NUMBER)))
             .await
             .unwrap();
 
@@ -309,7 +311,7 @@ mod test {
 
         let tick = I24::ZERO;
 
-        let result = angstrom_l2_tick_growth_outside(&provider, HOOK_ADDRESS, POOL_ID, tick, Some(BLOCK_NUMBER))
+        let result = angstrom_l2_tick_growth_outside(&provider, HOOK_ADDRESS, POOL_ID, tick, Some(BlockId::number(BLOCK_NUMBER)))
             .await
             .unwrap();
 
@@ -331,7 +333,7 @@ mod test {
             current_tick,
             tick_lower,
             tick_upper,
-            Some(BLOCK_NUMBER)
+            Some(BlockId::number(BLOCK_NUMBER))
         )
         .await
         .unwrap();
@@ -358,7 +360,7 @@ mod test {
             token_id,
             tick_lower,
             tick_upper,
-            Some(BLOCK_NUMBER)
+            Some(BlockId::number(BLOCK_NUMBER))
         )
         .await
         .unwrap();
@@ -370,7 +372,7 @@ mod test {
     async fn test_angstrom_l2_pool_fee_config() {
         let provider = eth_base_provider().await;
 
-        let result = angstrom_l2_pool_fee_config(&provider, HOOK_ADDRESS, POOL_ID, Some(BLOCK_NUMBER))
+        let result = angstrom_l2_pool_fee_config(&provider, HOOK_ADDRESS, POOL_ID, Some(BlockId::number(BLOCK_NUMBER)))
             .await
             .unwrap();
 
@@ -381,7 +383,7 @@ mod test {
     async fn test_angstrom_l2_is_pool_initialized() {
         let provider = eth_base_provider().await;
 
-        let result = angstrom_l2_is_pool_initialized(&provider, HOOK_ADDRESS, POOL_ID, Some(BLOCK_NUMBER))
+        let result = angstrom_l2_is_pool_initialized(&provider, HOOK_ADDRESS, POOL_ID, Some(BlockId::number(BLOCK_NUMBER)))
             .await
             .unwrap();
 
@@ -392,7 +394,7 @@ mod test {
     async fn test_angstrom_l2_total_swap_fee_rate_e6() {
         let provider = eth_base_provider().await;
 
-        let result = angstrom_l2_total_swap_fee_rate_e6(&provider, HOOK_ADDRESS, POOL_ID, Some(BLOCK_NUMBER))
+        let result = angstrom_l2_total_swap_fee_rate_e6(&provider, HOOK_ADDRESS, POOL_ID, Some(BlockId::number(BLOCK_NUMBER)))
             .await
             .unwrap();
 
@@ -403,7 +405,7 @@ mod test {
     async fn test_angstrom_l2_total_tax_fee_rate_e6() {
         let provider = eth_base_provider().await;
 
-        let result = angstrom_l2_total_tax_fee_rate_e6(&provider, HOOK_ADDRESS, POOL_ID, Some(BLOCK_NUMBER))
+        let result = angstrom_l2_total_tax_fee_rate_e6(&provider, HOOK_ADDRESS, POOL_ID, Some(BlockId::number(BLOCK_NUMBER)))
             .await
             .unwrap();
 

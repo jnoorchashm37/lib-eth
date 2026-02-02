@@ -1,3 +1,4 @@
+use alloy_eips::BlockId;
 use alloy_primitives::{Address, B256, U256, aliases::I24, keccak256};
 use alloy_sol_types::SolValue;
 
@@ -30,16 +31,16 @@ pub async fn pool_manager_position_fee_growth_inside<F: StorageSlotFetcher>(
     current_tick: I24,
     tick_lower: I24,
     tick_upper: I24,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<(U256, U256)> {
     let (
         (fee_growth_global0_x128, fee_growth_global1_x128),
         (tick_lower_fee_growth_outside0_x128, tick_lower_fee_growth_outside1_x128),
         (tick_upper_fee_growth_outside0_x128, tick_upper_fee_growth_outside1_x128)
     ) = futures::try_join!(
-        pool_manager_pool_fee_growth_global(slot_fetcher, pool_manager_address, pool_id, block_number,),
-        pool_manager_pool_tick_fee_growth_outside(slot_fetcher, pool_manager_address, pool_id, tick_lower, block_number,),
-        pool_manager_pool_tick_fee_growth_outside(slot_fetcher, pool_manager_address, pool_id, tick_upper, block_number,)
+        pool_manager_pool_fee_growth_global(slot_fetcher, pool_manager_address, pool_id, block_id,),
+        pool_manager_pool_tick_fee_growth_outside(slot_fetcher, pool_manager_address, pool_id, tick_lower, block_id,),
+        pool_manager_pool_tick_fee_growth_outside(slot_fetcher, pool_manager_address, pool_id, tick_upper, block_id,)
     )?;
 
     let (fee_growth_inside0_x128, fee_growth_inside1_x128) = if current_tick < tick_lower {
@@ -70,7 +71,7 @@ pub async fn pool_manager_position_state_last_fee_growth_inside<F: StorageSlotFe
     position_token_id: U256,
     tick_lower: I24,
     tick_upper: I24,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<(U256, U256)> {
     let position_key = U256::from_be_slice(
         encode_position_key(position_manager_address, position_token_id, tick_lower, tick_upper).as_slice()
@@ -84,8 +85,8 @@ pub async fn pool_manager_position_state_last_fee_growth_inside<F: StorageSlotFe
         position_state_slot_base + U256::from(POOL_MANAGER_POSITION_STATE_FEE_GROWTH_INSIDE1_LAST_X128_SLOT_OFFSET);
 
     let (fee_growth_inside0_last_x128, fee_growth_inside1_last_x128) = futures::try_join!(
-        slot_fetcher.storage_at(pool_manager_address, fee_growth_inside0_last_x128_slot.into(), block_number),
-        slot_fetcher.storage_at(pool_manager_address, fee_growth_inside1_last_x128_slot.into(), block_number)
+        slot_fetcher.storage_at(pool_manager_address, fee_growth_inside0_last_x128_slot.into(), block_id),
+        slot_fetcher.storage_at(pool_manager_address, fee_growth_inside1_last_x128_slot.into(), block_id)
     )?;
 
     Ok((fee_growth_inside0_last_x128, fee_growth_inside1_last_x128))
@@ -99,7 +100,7 @@ pub async fn pool_manager_position_state_liquidity<F: StorageSlotFetcher>(
     position_token_id: U256,
     tick_lower: I24,
     tick_upper: I24,
-    block_number: Option<u64>
+    block_id: Option<BlockId>
 ) -> eyre::Result<u128> {
     let position_key = U256::from_be_slice(
         encode_position_key(position_manager_address, position_token_id, tick_lower, tick_upper).as_slice()
@@ -107,7 +108,7 @@ pub async fn pool_manager_position_state_liquidity<F: StorageSlotFetcher>(
     let position_state_slot = pool_manager_position_state_slot(pool_id.into(), position_key);
 
     let liquidity = slot_fetcher
-        .storage_at(pool_manager_address, position_state_slot, block_number)
+        .storage_at(pool_manager_address, position_state_slot, block_id)
         .await?;
 
     Ok(liquidity.to())
@@ -116,6 +117,7 @@ pub async fn pool_manager_position_state_liquidity<F: StorageSlotFetcher>(
 #[cfg(test)]
 mod tests {
 
+    use alloy_eips::BlockId;
     use alloy_primitives::aliases::U24;
 
     use super::*;
@@ -145,7 +147,7 @@ mod tests {
             I24::unchecked_from(190088),
             I24::unchecked_from(-887270),
             I24::unchecked_from(887270),
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();
@@ -180,7 +182,7 @@ mod tests {
             U256::from(14328_u64),
             I24::unchecked_from(-887270),
             I24::unchecked_from(887270),
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();
@@ -209,7 +211,7 @@ mod tests {
             U256::from(14328_u64),
             I24::unchecked_from(-887270),
             I24::unchecked_from(887270),
-            Some(block_number)
+            Some(BlockId::number(block_number))
         )
         .await
         .unwrap();

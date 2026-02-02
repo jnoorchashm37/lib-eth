@@ -63,6 +63,7 @@ alloy-rpc-types = { workspace = true, default-features = false, features = [
     "eth",
 ] }
 alloy-primitives = { workspace = true, default-features = false }
+alloy-eips = { workspace = true, optional = true }
 op-alloy-network = { workspace = true, optional = true }
 op-alloy-consensus = { workspace = true, optional = true }
 
@@ -126,6 +127,6 @@ reth-libmdbx = [
     "dep:reth-storage-api",
 ]
 
-uniswap-storage = ["dep:uniswap-storage"]
+uniswap-storage = ["dep:uniswap-storage", "dep:alloy-eips"]
 
 ci = []

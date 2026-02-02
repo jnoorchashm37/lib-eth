@@ -122,6 +122,7 @@ impl From<eyre::ErrReport> for RevmUtilError {
 
 #[cfg(feature = "uniswap-storage")]
 mod _uniswap_storage {
+    use alloy_eips::BlockId;
     use alloy_primitives::{Address, StorageKey, StorageValue};
     use eth_network_exts::EthNetworkExt;
     use reth_provider::StateProvider;
@@ -135,7 +136,7 @@ mod _uniswap_storage {
 
     #[async_trait::async_trait]
     impl StorageSlotFetcher for RethLibmdbxDatabaseRef {
-        async fn storage_at(&self, address: Address, key: StorageKey, _: Option<u64>) -> eyre::Result<StorageValue> {
+        async fn storage_at(&self, address: Address, key: StorageKey, _: Option<BlockId>) -> eyre::Result<StorageValue> {
             let db = self.0.lock().map_err(|e| eyre::eyre!("{e}"))?;
             Ok(db.storage(address, key)?.unwrap_or_default())
         }
@@ -150,11 +151,11 @@ mod _uniswap_storage {
             &self,
             address: Address,
             key: StorageKey,
-            block_number: Option<u64>
+            block_id: Option<BlockId>
         ) -> eyre::Result<StorageValue> {
             Ok(self
                 .eth_api()
-                .storage_at(address, key.into(), block_number.map(Into::into))
+                .storage_at(address, key.into(), block_id)
                 .await?
                 .into())
         }
