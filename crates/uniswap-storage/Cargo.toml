@@ -38,7 +38,7 @@ alloy-provider = { workspace = true, default-features = false, features = [
 ] }
 tokio = { workspace = true, features = ["full"] }
 dotenv = "0.15"
-op-alloy-network = { version = "0.22.1", default-features = false }
+op-alloy-network = { version = "0.23.1", default-features = false }
 
 [features]
 default = ["full", "revm"]
