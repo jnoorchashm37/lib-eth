@@ -123,7 +123,8 @@ mod reth_db_impls {
             block_number: Option<u64>
         ) -> eyre::Result<StorageValue> {
             let block_id = block_number.map(Into::into).unwrap_or_else(BlockId::latest);
-            let state_provider = self.provider().state_by_block_id(block_id)?;
+
+            let state_provider = self.eth_api().provider().state_by_block_id(block_id)?;
 
             Ok(state_provider.storage(address, key)?.unwrap_or_default())
         }

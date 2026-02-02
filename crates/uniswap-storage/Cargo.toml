@@ -54,4 +54,5 @@ local-reth = [
     "dep:reth-provider",
     "dep:reth-rpc",
     "dep:reth-rpc-convert",
+    "dep:reth-optimism-rpc",
 ]
