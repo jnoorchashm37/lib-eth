@@ -32,6 +32,7 @@ eyre = "0.6.12"
 itertools = "0.14"
 async-trait = "0"
 
+
 [dev-dependencies]
 alloy-provider = { workspace = true, default-features = false, features = [
     "pubsub",

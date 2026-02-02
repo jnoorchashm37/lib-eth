@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use alloy_primitives::{Address, B256, U256};
 use reth_provider::StateProviderBox;
@@ -10,15 +10,20 @@ use revm::{
     state::{AccountInfo, Bytecode}
 };
 
-pub struct RethLibmdbxDatabaseRef(StateProviderDatabase<StateProviderBox>);
+#[derive(Clone)]
+pub struct RethLibmdbxDatabaseRef(Arc<Mutex<StateProviderDatabase<StateProviderBox>>>);
 
 impl RethLibmdbxDatabaseRef {
     pub fn new(this: StateProviderDatabase<StateProviderBox>) -> Self {
-        Self(this)
+        Self(Arc::new(Mutex::new(this)))
     }
 
-    pub fn state_provider_ref(&self) -> &StateProviderDatabase<StateProviderBox> {
-        &self.0
+    pub fn state_provider(&self) -> StateProviderDatabase<StateProviderBox> {
+        let this = self.clone();
+        Arc::try_unwrap(this.0)
+            .expect("multiple references to RethLibmdbxDatabaseRef")
+            .into_inner()
+            .expect("mutex poisoned")
     }
 }
 
@@ -26,7 +31,11 @@ impl DatabaseRef for RethLibmdbxDatabaseRef {
     type Error = RevmUtilError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
-        reth_revm::DatabaseRef::basic_ref(&self.0, address)
+        let db = self
+            .0
+            .lock()
+            .map_err(|e| RevmUtilError(eyre::eyre!("{e}")))?;
+        reth_revm::DatabaseRef::basic_ref(&*db, address)
             .map_err(RevmUtilError::as_value)?
             .map(|acct| {
                 Ok::<_, Self::Error>(AccountInfo {
@@ -41,15 +50,27 @@ impl DatabaseRef for RethLibmdbxDatabaseRef {
     }
 
     fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
-        Ok(change_bytecode(reth_revm::DatabaseRef::code_by_hash_ref(&self.0, code_hash).map_err(RevmUtilError::as_value)?)?)
+        let db = self
+            .0
+            .lock()
+            .map_err(|e| RevmUtilError(eyre::eyre!("{e}")))?;
+        Ok(change_bytecode(reth_revm::DatabaseRef::code_by_hash_ref(&*db, code_hash).map_err(RevmUtilError::as_value)?)?)
     }
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
-        reth_revm::DatabaseRef::storage_ref(&self.0, address, index).map_err(RevmUtilError::as_value)
+        let db = self
+            .0
+            .lock()
+            .map_err(|e| RevmUtilError(eyre::eyre!("{e}")))?;
+        reth_revm::DatabaseRef::storage_ref(&*db, address, index).map_err(RevmUtilError::as_value)
     }
 
     fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
-        reth_revm::DatabaseRef::block_hash_ref(&self.0, number).map_err(RevmUtilError::as_value)
+        let db = self
+            .0
+            .lock()
+            .map_err(|e| RevmUtilError(eyre::eyre!("{e}")))?;
+        reth_revm::DatabaseRef::block_hash_ref(&*db, number).map_err(RevmUtilError::as_value)
     }
 }
 
@@ -102,14 +123,40 @@ impl From<eyre::ErrReport> for RevmUtilError {
 #[cfg(feature = "uniswap-storage")]
 mod _uniswap_storage {
     use alloy_primitives::{Address, StorageKey, StorageValue};
+    use eth_network_exts::EthNetworkExt;
     use reth_provider::StateProvider;
-    use uniswap_storage::StorageSlotFetcherSync;
+    use reth_rpc_eth_api::helpers::EthState;
+    use uniswap_storage::StorageSlotFetcher;
 
-    use crate::traits::reth_revm_utils::RethLibmdbxDatabaseRef;
+    use crate::{
+        reth_libmdbx::{NodeClientSpec, RethNodeClient},
+        traits::reth_revm_utils::RethLibmdbxDatabaseRef
+    };
 
-    impl StorageSlotFetcherSync for RethLibmdbxDatabaseRef {
-        fn storage_at(&self, address: Address, key: StorageKey, _: Option<u64>) -> eyre::Result<StorageValue> {
-            Ok(self.0.storage(address, key)?.unwrap_or_default())
+    #[async_trait::async_trait]
+    impl StorageSlotFetcher for RethLibmdbxDatabaseRef {
+        async fn storage_at(&self, address: Address, key: StorageKey, _: Option<u64>) -> eyre::Result<StorageValue> {
+            let db = self.0.lock().map_err(|e| eyre::eyre!("{e}"))?;
+            Ok(db.storage(address, key)?.unwrap_or_default())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl<Ext: EthNetworkExt> StorageSlotFetcher for RethNodeClient<Ext>
+    where
+        Ext::RethNode: NodeClientSpec
+    {
+        async fn storage_at(
+            &self,
+            address: Address,
+            key: StorageKey,
+            block_number: Option<u64>
+        ) -> eyre::Result<StorageValue> {
+            Ok(self
+                .eth_api()
+                .storage_at(address, key.into(), block_number.map(Into::into))
+                .await?
+                .into())
         }
     }
 }
