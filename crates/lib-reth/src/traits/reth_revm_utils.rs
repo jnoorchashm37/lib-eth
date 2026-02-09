@@ -109,7 +109,7 @@ mod _uniswap_storage {
 
     #[async_trait::async_trait]
     impl StorageSlotFetcher for RethLibmdbxDatabaseRef {
-        async fn storage_at(&self, address: Address, key: StorageKey, _: Option<u64>) -> eyre::Result<StorageValue> {
+        async fn storage_at(&self, address: Address, key: StorageKey, _: Option<BlockId>) -> eyre::Result<StorageValue> {
             let db = self.0.lock().map_err(|e| eyre::eyre!("{e}"))?;
             Ok(db.storage(address, key)?.unwrap_or_default())
         }
