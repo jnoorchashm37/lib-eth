@@ -19,7 +19,7 @@ use reth_optimism_rpc::{
     OpEthApi,
     eth::{receipt::OpReceiptConverter, transaction::OpTxInfoMapper}
 };
-use reth_provider::providers::{BlockchainProvider, StaticFileProvider};
+use reth_provider::providers::{BlockchainProvider, RocksDBProvider, StaticFileProvider};
 use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
 use reth_rpc_eth_api::{RpcConverter, TxInfoMapper, node::RpcNodeCoreAdapter};
 use reth_rpc_eth_types::{EthConfig, EthFilterConfig};
@@ -68,11 +68,13 @@ impl NodeClientSpec for OpNode {
         let db = Arc::new(open_db_read_only(db_config.db_path, db_config.db_args)?);
 
         let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone(), true)?;
+        let rocksdb_provider = RocksDBProvider::builder(&db_config.rocksdb_path).build()?;
         let provider_factory = OpNode::provider_factory_builder()
             .db(db)
             .chainspec(chain_spec.clone())
             .static_file(static_file_provider)
-            .build_provider_factory();
+            .rocksdb_provider(rocksdb_provider)
+            .build_provider_factory()?;
 
         let blockchain_provider = BlockchainProvider::new(provider_factory.clone())?;
 
@@ -100,7 +102,7 @@ impl NodeClientSpec for OpNode {
         let tracing_call_guard = BlockingTaskGuard::new(max_tasks);
         let trace = TraceApi::new(api.clone(), tracing_call_guard.clone(), EthConfig::default());
 
-        let debug = DebugApi::new(api.clone(), tracing_call_guard);
+        let debug = DebugApi::new(api.clone(), tracing_call_guard, task_executor.clone(), futures::stream::empty());
         let filter = EthFilter::new(api.clone(), EthFilterConfig::default(), Box::new(task_executor.clone()));
 
         Ok(RethNodeClient {

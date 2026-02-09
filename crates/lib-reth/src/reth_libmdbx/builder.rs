@@ -51,7 +51,7 @@ where
         self,
         task_executor: T
     ) -> eyre::Result<RethNodeClient<Ext>> {
-        let (db_path, static_files_path) = self.db_paths()?;
+        let (db_path, static_files_path, rocksdb_path) = self.db_paths()?;
 
         let db_args = self.db_args.unwrap_or_else(|| {
             DatabaseArguments::new(Default::default()).with_max_read_transaction_duration(Some(
@@ -59,7 +59,7 @@ where
             ))
         });
 
-        let db_config = DbConfig { db_path, static_files_path, db_args };
+        let db_config = DbConfig { db_path, static_files_path, rocksdb_path, db_args };
 
         <Ext::RethNode as NodeClientSpec>::new_with_db::<_, Ext>(
             db_config,
@@ -70,8 +70,8 @@ where
         )
     }
 
-    /// (db_path, static_files)
-    fn db_paths(&self) -> eyre::Result<(PathBuf, PathBuf)> {
+    /// (db_path, static_files, rocksdb)
+    fn db_paths(&self) -> eyre::Result<(PathBuf, PathBuf, PathBuf)> {
         let db_dir = Path::new(&self.db_path);
 
         if !db_dir.exists() {
@@ -89,12 +89,15 @@ where
             eyre::bail!("no 'static_files' subdirectory found in directory '{db_dir:?}'")
         }
 
-        Ok((db_path, static_files_path))
+        let rocksdb_path = db_dir.join("rocksdb");
+
+        Ok((db_path, static_files_path, rocksdb_path))
     }
 }
 
 pub struct DbConfig {
     pub db_path:           PathBuf,
     pub static_files_path: PathBuf,
+    pub rocksdb_path:      PathBuf,
     pub db_args:           DatabaseArguments
 }
