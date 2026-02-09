@@ -5,7 +5,6 @@ use reth_provider::StateProviderBox;
 use reth_revm::database::StateProviderDatabase;
 use revm::{
     DatabaseRef,
-    bytecode::LegacyAnalyzedBytecode,
     context_interface::DBErrorMarker,
     state::{AccountInfo, Bytecode}
 };
@@ -35,18 +34,7 @@ impl DatabaseRef for RethLibmdbxDatabaseRef {
             .0
             .lock()
             .map_err(|e| RevmUtilError(eyre::eyre!("{e}")))?;
-        reth_revm::DatabaseRef::basic_ref(&*db, address)
-            .map_err(RevmUtilError::as_value)?
-            .map(|acct| {
-                Ok::<_, Self::Error>(AccountInfo {
-                    account_id: acct.account_id,
-                    balance:    acct.balance,
-                    nonce:      acct.nonce,
-                    code_hash:  acct.code_hash,
-                    code:       acct.code.map(change_bytecode).transpose()?
-                })
-            })
-            .transpose()
+        reth_revm::DatabaseRef::basic_ref(&*db, address).map_err(RevmUtilError::as_value)
     }
 
     fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
@@ -54,7 +42,7 @@ impl DatabaseRef for RethLibmdbxDatabaseRef {
             .0
             .lock()
             .map_err(|e| RevmUtilError(eyre::eyre!("{e}")))?;
-        Ok(change_bytecode(reth_revm::DatabaseRef::code_by_hash_ref(&*db, code_hash).map_err(RevmUtilError::as_value)?)?)
+        reth_revm::DatabaseRef::code_by_hash_ref(&*db, code_hash).map_err(RevmUtilError::as_value)
     }
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
@@ -72,21 +60,6 @@ impl DatabaseRef for RethLibmdbxDatabaseRef {
             .map_err(|e| RevmUtilError(eyre::eyre!("{e}")))?;
         reth_revm::DatabaseRef::block_hash_ref(&*db, number).map_err(RevmUtilError::as_value)
     }
-}
-
-fn change_bytecode(bytes: reth_revm::bytecode::Bytecode) -> eyre::Result<Bytecode> {
-    let new_bytecode = match bytes {
-        reth_revm::bytecode::Bytecode::LegacyAnalyzed(legacy_analyzed_bytecode) => {
-            Bytecode::LegacyAnalyzed(Arc::new(LegacyAnalyzedBytecode::new(
-                legacy_analyzed_bytecode.bytecode().clone(),
-                legacy_analyzed_bytecode.original_len(),
-                legacy_analyzed_bytecode.jump_table().clone()
-            )))
-        }
-        reth_revm::bytecode::Bytecode::Eip7702(eip7702_bytecode) => Bytecode::Eip7702(eip7702_bytecode)
-    };
-
-    Ok(new_bytecode)
 }
 
 #[derive(Debug)]
@@ -136,7 +109,7 @@ mod _uniswap_storage {
 
     #[async_trait::async_trait]
     impl StorageSlotFetcher for RethLibmdbxDatabaseRef {
-        async fn storage_at(&self, address: Address, key: StorageKey, _: Option<BlockId>) -> eyre::Result<StorageValue> {
+        async fn storage_at(&self, address: Address, key: StorageKey, _: Option<u64>) -> eyre::Result<StorageValue> {
             let db = self.0.lock().map_err(|e| eyre::eyre!("{e}"))?;
             Ok(db.storage(address, key)?.unwrap_or_default())
         }
