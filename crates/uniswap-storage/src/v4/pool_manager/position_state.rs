@@ -31,7 +31,7 @@ pub async fn pool_manager_position_fee_growth_inside<F: StorageSlotFetcher>(
     current_tick: I24,
     tick_lower: I24,
     tick_upper: I24,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<(U256, U256)> {
     let (
         (fee_growth_global0_x128, fee_growth_global1_x128),
@@ -71,7 +71,7 @@ pub async fn pool_manager_position_state_last_fee_growth_inside<F: StorageSlotFe
     position_token_id: U256,
     tick_lower: I24,
     tick_upper: I24,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<(U256, U256)> {
     let position_key = U256::from_be_slice(
         encode_position_key(position_manager_address, position_token_id, tick_lower, tick_upper).as_slice()
@@ -100,7 +100,7 @@ pub async fn pool_manager_position_state_liquidity<F: StorageSlotFetcher>(
     position_token_id: U256,
     tick_lower: I24,
     tick_upper: I24,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<u128> {
     let position_key = U256::from_be_slice(
         encode_position_key(position_manager_address, position_token_id, tick_lower, tick_upper).as_slice()
@@ -147,7 +147,7 @@ mod tests {
             I24::unchecked_from(190088),
             I24::unchecked_from(-887270),
             I24::unchecked_from(887270),
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -182,7 +182,7 @@ mod tests {
             U256::from(14328_u64),
             I24::unchecked_from(-887270),
             I24::unchecked_from(887270),
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -211,7 +211,7 @@ mod tests {
             U256::from(14328_u64),
             I24::unchecked_from(-887270),
             I24::unchecked_from(887270),
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();

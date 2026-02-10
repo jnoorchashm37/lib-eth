@@ -33,7 +33,7 @@ pub fn position_manager_pool_key_and_info_slot(position_info: U256) -> B256 {
 pub async fn position_manager_position_info<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     position_manager_address: Address,
-    block_id: Option<BlockId>,
+    block_id: BlockId,
     token_id: U256
 ) -> eyre::Result<U256> {
     let position_info_slot = position_manager_position_info_slot(token_id);
@@ -48,7 +48,7 @@ pub async fn position_manager_position_info<F: StorageSlotFetcher>(
 pub async fn position_manager_pool_key_and_info<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     position_manager_address: Address,
-    block_id: Option<BlockId>,
+    block_id: BlockId,
     token_id: U256
 ) -> eyre::Result<(V4PoolKey, UnpackedPositionInfo)> {
     let position_info =
@@ -77,7 +77,7 @@ pub async fn position_manager_pool_key_and_info<F: StorageSlotFetcher>(
 pub async fn position_manager_owner_of<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     position_manager_address: Address,
-    block_id: Option<BlockId>,
+    block_id: BlockId,
     token_id: U256
 ) -> eyre::Result<Address> {
     let owner_of_slot = position_manager_owner_of_slot(token_id);
@@ -92,7 +92,7 @@ pub async fn position_manager_owner_of<F: StorageSlotFetcher>(
 pub async fn position_manager_next_token_id<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     position_manager_address: Address,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<U256> {
     let next_token_id = slot_fetcher
         .storage_at(position_manager_address, U256::from(POSITION_MANAGER_NEXT_TOKEN_ID_SLOT).into(), block_id)
@@ -122,7 +122,7 @@ mod tests {
         let results = position_manager_position_info(
             &provider,
             UNISWAP_V4_CONSTANTS_MAINNET.position_manager(),
-            Some(BlockId::number(block_number)),
+            BlockId::number(block_number),
             U256::from(96348_u64)
         )
         .await
@@ -150,7 +150,7 @@ mod tests {
         let (results, _) = position_manager_pool_key_and_info(
             &provider,
             UNISWAP_V4_CONSTANTS_MAINNET.position_manager(),
-            Some(BlockId::number(block_number)),
+            BlockId::number(block_number),
             U256::from(96348_u64)
         )
         .await
@@ -167,7 +167,7 @@ mod tests {
         let results = position_manager_owner_of(
             &provider,
             UNISWAP_V4_CONSTANTS_MAINNET.position_manager(),
-            Some(BlockId::number(block_number)),
+            BlockId::number(block_number),
             U256::from(96348_u64)
         )
         .await
@@ -182,7 +182,7 @@ mod tests {
         let block_number = 23998000;
 
         let results =
-            position_manager_next_token_id(&provider, UNISWAP_V4_CONSTANTS_MAINNET.position_manager(), Some(BlockId::number(block_number)))
+            position_manager_next_token_id(&provider, UNISWAP_V4_CONSTANTS_MAINNET.position_manager(), BlockId::number(block_number))
                 .await
                 .unwrap();
 

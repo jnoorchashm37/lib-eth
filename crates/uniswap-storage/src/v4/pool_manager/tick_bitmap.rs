@@ -102,7 +102,7 @@ pub async fn next_initialized_tick_within_one_word<F: StorageSlotFetcher>(
     tick: I24,
     tick_spacing: I24,
     lte: bool,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<(I24, bool)> {
     let mut compressed = compress_tick(tick, tick_spacing);
     if lte {
@@ -168,7 +168,7 @@ pub async fn tick_bitmap_from_word<F: StorageSlotFetcher>(
     pool_manager_address: Address,
     pool_id: B256,
     word_pos: i16,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<TickBitmap> {
     let pool_tick_bitmap_slot = pool_manager_pool_tick_bitmap_slot(pool_id.into(), word_pos);
 
@@ -185,7 +185,7 @@ pub async fn tick_bitmap_from_tick<F: StorageSlotFetcher>(
     pool_id: B256,
     tick: I24,
     tick_spacing: I24,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<TickBitmap> {
     let (word_pos, _) = tick_position_from_compressed(tick, tick_spacing);
 
@@ -198,7 +198,7 @@ pub async fn tick_initialized<F: StorageSlotFetcher>(
     tick_spacing: I24,
     pool_id: B256,
     tick: I24,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<bool> {
     let (word_pos, bit_pos) = tick_position_from_compressed(tick, tick_spacing);
     let tick_bitmap = tick_bitmap_from_word(slot_fetcher, pool_manager_address, pool_id, word_pos, block_id).await?;
@@ -213,7 +213,7 @@ pub async fn next_tick_gt<F: StorageSlotFetcher>(
     pool_id: B256,
     tick: I24,
     initialized_only: bool,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<(bool, I24)> {
     if is_tick_at_bounds(tick, tick_spacing, false) {
         return Ok((false, tick));
@@ -247,7 +247,7 @@ pub async fn next_tick_lt<F: StorageSlotFetcher>(
     pool_id: B256,
     tick: I24,
     initialized_only: bool,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<(bool, I24)> {
     if is_tick_at_bounds(tick, tick_spacing, true) {
         return Ok((false, tick));
@@ -281,7 +281,7 @@ pub async fn next_tick_le<F: StorageSlotFetcher>(
     pool_id: B256,
     tick: I24,
     initialized_only: bool,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<(bool, I24)> {
     if is_tick_at_bounds(tick, tick_spacing, true) {
         return Ok((false, tick));
@@ -393,7 +393,7 @@ mod tests {
         let pool_id = pool_key.into();
 
         let results =
-            tick_bitmap_from_word(&provider, UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(), pool_id, 346, Some(BlockId::number(block_number)))
+            tick_bitmap_from_word(&provider, UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(), pool_id, 346, BlockId::number(block_number))
                 .await
                 .unwrap();
         assert_eq!(results.0, U256::from_str_radix("2854495385411919762116571938898990272765493248", 10).unwrap());
@@ -421,7 +421,7 @@ mod tests {
             tick_spacing,
             pool_id,
             tick,
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -451,7 +451,7 @@ mod tests {
             pool_id,
             tick,
             true,
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -482,7 +482,7 @@ mod tests {
             pool_id,
             tick,
             true,
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -513,7 +513,7 @@ mod tests {
             pool_id,
             tick,
             true,
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -537,7 +537,7 @@ mod tests {
             tick,
             tick_spacing,
             false,
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -562,7 +562,7 @@ mod tests {
             tick,
             tick_spacing,
             true,
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();

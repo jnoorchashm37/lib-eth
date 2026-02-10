@@ -36,7 +36,7 @@ pub const ANGSTROM_L2_FACTORY_HOOK_POOL_IDS_SLOT: u64 = 3;
 pub async fn angstrom_l2_factory_get_slot0<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     factory_address: Address,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<AngstromL2FactorySlot0> {
     let out = slot_fetcher
         .storage_at(factory_address, U256::from(ANGSTROM_L2_FACTORY_SLOT_0).into(), block_id)
@@ -50,7 +50,7 @@ pub async fn angstrom_l2_factory_is_verified_hook<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     factory_address: Address,
     hook_address: Address,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<bool> {
     // Compute the slot for isVerifiedHook[hook_address]
     let slot = keccak256((hook_address, U256::from(ANGSTROM_L2_FACTORY_IS_VERIFIED_HOOK_SLOT)).abi_encode());
@@ -66,7 +66,7 @@ pub async fn angstrom_l2_factory_is_verified_hook<F: StorageSlotFetcher>(
 pub async fn angstrom_l2_factory_all_hooks_length<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     factory_address: Address,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<u64> {
     let length = slot_fetcher
         .storage_at(factory_address, U256::from(ANGSTROM_L2_FACTORY_ALL_HOOKS_SLOT).into(), block_id)
@@ -80,7 +80,7 @@ pub async fn angstrom_l2_factory_all_hooks_at<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     factory_address: Address,
     index: u64,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<Address> {
     // Calculate the slot for array element at index
     let base_slot = keccak256(U256::from(ANGSTROM_L2_FACTORY_ALL_HOOKS_SLOT).abi_encode());
@@ -97,7 +97,7 @@ pub async fn angstrom_l2_factory_all_hooks_at<F: StorageSlotFetcher>(
 pub async fn angstrom_l2_factory_all_hooks<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     factory_address: Address,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<Vec<Address>> {
     let length = angstrom_l2_factory_all_hooks_length(slot_fetcher, factory_address, block_id).await?;
 
@@ -118,7 +118,7 @@ pub async fn angstrom_l2_factory_hook_address_for_pool_id<F: StorageSlotFetcher>
     slot_fetcher: &F,
     factory_address: Address,
     pool_id: B256,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<Option<Address>> {
     // Compute the slot for hookPoolIds[pool_id]
     let slot = keccak256((pool_id, U256::from(ANGSTROM_L2_FACTORY_HOOK_POOL_IDS_SLOT)).abi_encode());
@@ -149,7 +149,7 @@ mod test {
         let result = angstrom_l2_factory_get_slot0(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
-            Some(BlockId::number(BLOCK_NUMBER))
+            BlockId::number(BLOCK_NUMBER)
         )
         .await
         .unwrap();
@@ -171,7 +171,7 @@ mod test {
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
             HOOK_ADDRESS,
-            Some(BlockId::number(BLOCK_NUMBER))
+            BlockId::number(BLOCK_NUMBER)
         )
         .await
         .unwrap();
@@ -186,7 +186,7 @@ mod test {
         let result = angstrom_l2_factory_all_hooks_length(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
-            Some(BlockId::number(BLOCK_NUMBER))
+            BlockId::number(BLOCK_NUMBER)
         )
         .await
         .unwrap();
@@ -202,7 +202,7 @@ mod test {
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
             0,
-            Some(BlockId::number(BLOCK_NUMBER))
+            BlockId::number(BLOCK_NUMBER)
         )
         .await
         .unwrap();
@@ -217,7 +217,7 @@ mod test {
         let result = angstrom_l2_factory_all_hooks(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
-            Some(BlockId::number(BLOCK_NUMBER))
+            BlockId::number(BLOCK_NUMBER)
         )
         .await
         .unwrap();
@@ -233,7 +233,7 @@ mod test {
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
             POOL_ID,
-            Some(BlockId::number(BLOCK_NUMBER))
+            BlockId::number(BLOCK_NUMBER)
         )
         .await
         .unwrap()

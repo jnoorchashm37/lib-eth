@@ -21,7 +21,7 @@ pub async fn pool_manager_pool_fee_growth_global<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     pool_manager_address: Address,
     pool_id: B256,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<(U256, U256)> {
     let pool_state_slot = pool_manager_pool_state_slot(pool_id.into());
     let pool_state_slot_base = U256::from_be_slice(pool_state_slot.as_slice());
@@ -43,7 +43,7 @@ pub async fn pool_manager_pool_slot0<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     pool_manager_address: Address,
     pool_id: B256,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<UnpackedSlot0> {
     let pool_state_slot = pool_manager_pool_state_slot(pool_id.into());
 
@@ -58,7 +58,7 @@ pub async fn pool_manager_pool_liquidity<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     pool_manager_address: Address,
     pool_id: B256,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<U256> {
     let pool_state_slot = pool_manager_pool_state_slot(pool_id.into());
     let pool_state_slot_base = U256::from_be_slice(pool_state_slot.as_slice());
@@ -104,7 +104,7 @@ mod tests {
             &provider,
             UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
             pool_key.into(),
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -135,7 +135,7 @@ mod tests {
             &provider,
             UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
             pool_key.into(),
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -167,7 +167,7 @@ mod tests {
             &provider,
             UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
             pool_key.into(),
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();

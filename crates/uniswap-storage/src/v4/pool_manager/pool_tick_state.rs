@@ -40,7 +40,7 @@ pub async fn pool_manager_pool_tick_fee_growth_outside<F: StorageSlotFetcher>(
     pool_manager_address: Address,
     pool_id: B256,
     tick: I24,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<(U256, U256)> {
     let pool_tick_slot = pool_manager_pool_tick_slot(pool_id.into(), tick);
     let pool_tick_slot_base = U256::from_be_slice(pool_tick_slot.as_slice());
@@ -65,7 +65,7 @@ pub async fn pool_manager_load_tick_map<F: StorageSlotFetcher>(
     tick_spacing: I24,
     start_tick: Option<I24>,
     end_tick: Option<I24>,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<HashMap<I24, TickData>> {
     let start_tick = start_tick
         .map(|t| normalize_tick(t, tick_spacing))
@@ -77,8 +77,7 @@ pub async fn pool_manager_load_tick_map<F: StorageSlotFetcher>(
     let mut ct = start_tick;
     let mut initialized_ticks = Vec::new();
     while ct <= end_tick {
-        let (_, tick) =
-            next_tick_gt(slot_fetcher, pool_manager_address, tick_spacing, pool_id, ct, true, block_id).await?;
+        let (_, tick) = next_tick_gt(slot_fetcher, pool_manager_address, tick_spacing, pool_id, ct, true, block_id).await?;
         initialized_ticks.push(tick);
         ct = tick;
     }
@@ -108,7 +107,7 @@ pub async fn pool_manager_load_tick_data<F: StorageSlotFetcher>(
     tick_spacing: I24,
     pool_id: B256,
     tick: I24,
-    block_id: Option<BlockId>
+    block_id: BlockId
 ) -> eyre::Result<TickData> {
     let pool_tick_slot = pool_manager_pool_tick_slot(pool_id.into(), tick);
     let pool_tick_slot_base = U256::from_be_slice(pool_tick_slot.as_slice());
@@ -168,7 +167,7 @@ mod tests {
             UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
             pool_key.into(),
             I24::unchecked_from(191000),
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -202,7 +201,7 @@ mod tests {
             tick_spacing,
             Some(I24::unchecked_from(194000)),
             Some(I24::unchecked_from(195000)),
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -230,7 +229,7 @@ mod tests {
             I24::unchecked_from(10),
             pool_key.into(),
             tick,
-            Some(BlockId::number(block_number))
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
