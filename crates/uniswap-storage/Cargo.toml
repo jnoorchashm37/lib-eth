@@ -27,10 +27,10 @@ reth-rpc-convert = { workspace = true, optional = true }
 
 futures.workspace = true
 serde = { version = "1", features = ["derive"] }
-auto_impl = "1.3"
-eyre = "0.6.12"
+auto_impl.workspace = true
+eyre.workspace = true
 itertools = "0.14"
-async-trait = "0"
+async-trait.workspace = true
 
 
 [dev-dependencies]
