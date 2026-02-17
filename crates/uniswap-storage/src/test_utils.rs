@@ -9,7 +9,9 @@ pub async fn eth_provider() -> RootProvider {
 
 async fn __eth_provider<N: Network>(env: &str) -> RootProvider<N> {
     dotenv::dotenv().ok();
-    let url = std::env::var(env).expect(&format!("no {env} in .env"));
+    let url = std::env::var(env)
+        .map_err(|e| format!("no {env} in .env:\n{e:?}"))
+        .unwrap();
     ProviderBuilder::<_, _, N>::default()
         .connect_ws(WsConnect::new(url))
         .await
