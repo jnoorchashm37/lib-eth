@@ -89,12 +89,7 @@ mod reth_db_impls {
         N: RpcNodeCore,
         Rpc: RpcConvert
     {
-        async fn storage_at(
-            &self,
-            address: Address,
-            key: StorageKey,
-            block_id: BlockId
-        ) -> eyre::Result<StorageValue> {
+        async fn storage_at(&self, address: Address, key: StorageKey, block_id: BlockId) -> eyre::Result<StorageValue> {
             let block_id = block_id;
             let state_provider = self.provider().state_by_block_id(block_id)?;
 
@@ -121,12 +116,7 @@ mod reth_db_impls {
         N: RpcNodeCore,
         Rpc: RpcConvert
     {
-        async fn storage_at(
-            &self,
-            address: Address,
-            key: StorageKey,
-            block_id: BlockId
-        ) -> eyre::Result<StorageValue> {
+        async fn storage_at(&self, address: Address, key: StorageKey, block_id: BlockId) -> eyre::Result<StorageValue> {
             let block_id = block_id;
 
             let state_provider = self.eth_api().provider().state_by_block_id(block_id)?;

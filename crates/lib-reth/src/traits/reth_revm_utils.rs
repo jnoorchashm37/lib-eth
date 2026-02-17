@@ -121,12 +121,7 @@ mod _uniswap_storage {
     where
         Ext::RethNode: NodeClientSpec
     {
-        async fn storage_at(
-            &self,
-            address: Address,
-            key: StorageKey,
-            block_id: BlockId
-        ) -> eyre::Result<StorageValue> {
+        async fn storage_at(&self, address: Address, key: StorageKey, block_id: BlockId) -> eyre::Result<StorageValue> {
             Ok(self
                 .eth_api()
                 .storage_at(address, key.into(), Some(block_id))

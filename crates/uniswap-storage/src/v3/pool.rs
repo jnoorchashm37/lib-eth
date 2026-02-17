@@ -3,11 +3,7 @@ use alloy_primitives::{Address, StorageValue, U160, U256, aliases::I24};
 
 use crate::{StorageSlotFetcher, types::TickData, v3::utils::*};
 
-pub async fn v3_current_tick<P: StorageSlotFetcher>(
-    provider: &P,
-    pool: Address,
-    block_id: BlockId
-) -> eyre::Result<I24> {
+pub async fn v3_current_tick<P: StorageSlotFetcher>(provider: &P, pool: Address, block_id: BlockId) -> eyre::Result<I24> {
     let slot0_key = U256::from(SLOT0_SLOT);
     let slot0_value = provider
         .storage_at(pool, slot0_key.into(), block_id)
@@ -54,11 +50,7 @@ pub async fn v3_fee_growth_global<P: StorageSlotFetcher>(
     Ok((fee_growth_global0, fee_growth_global1))
 }
 
-pub async fn v3_sqrt_price_x96<P: StorageSlotFetcher>(
-    provider: &P,
-    pool: Address,
-    block_id: BlockId
-) -> eyre::Result<U160> {
+pub async fn v3_sqrt_price_x96<P: StorageSlotFetcher>(provider: &P, pool: Address, block_id: BlockId) -> eyre::Result<U160> {
     let slot0_key = U256::from(SLOT0_SLOT);
     let slot0_value = provider
         .storage_at(pool, slot0_key.into(), block_id)

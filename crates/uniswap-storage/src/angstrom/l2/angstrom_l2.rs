@@ -10,9 +10,15 @@
 |-----------------------+-----------------------------------------------------------+------+--------+-------+-------------------------------|
 | liquidityBeforeSwap   | struct tuint256                                           | 3    | 0      | 32    | src/AngstromL2.sol:AngstromL2 |
 |-----------------------+-----------------------------------------------------------+------+--------+-------+-------------------------------|
-| slot0BeforeSwapStore  | struct tbytes32                                           | 4    | 0      | 32    | src/AngstromL2.sol:AngstromL2 |
+| swapFee               | struct tuint256                                           | 4    | 0      | 32    | src/AngstromL2.sol:AngstromL2 |
 |-----------------------+-----------------------------------------------------------+------+--------+-------+-------------------------------|
-| poolKeys              | struct PoolKey[]                                          | 5    | 0      | 32    | src/AngstromL2.sol:AngstromL2 |
+| slot0BeforeSwapStore  | struct tbytes32                                           | 5    | 0      | 32    | src/AngstromL2.sol:AngstromL2 |
+|-----------------------+-----------------------------------------------------------+------+--------+-------+-------------------------------|
+| poolKeys              | struct PoolKey[]                                          | 6    | 0      | 32    | src/AngstromL2.sol:AngstromL2 |
+|-----------------------+-----------------------------------------------------------+------+--------+-------+-------------------------------|
+| priorityFeeTaxFloor   | uint256                                                   | 7    | 0      | 32    | src/AngstromL2.sol:AngstromL2 |
+|-----------------------+-----------------------------------------------------------+------+--------+-------+-------------------------------|
+| jitTaxEnabled         | bool                                                      | 8    | 0      | 1     | src/AngstromL2.sol:AngstromL2 |
 ╰-----------------------+-----------------------------------------------------------+------+--------+-------+-------------------------------╯
 
 */
@@ -36,44 +42,75 @@ use crate::{
 
 pub const ANGSTROM_L2_REWARDS_SLOT: u64 = 0;
 pub const ANGSTROM_L2_POOL_FEE_CONFIG_SLOT: u64 = 2;
-pub const ANGSTROM_L2_POOL_KEYS_SLOT: u64 = 5;
+pub const ANGSTROM_L2_POOL_KEYS_SLOT: u64 = 6;
+pub const ANGSTROM_L2_PRIORITY_FEE_TAX_FLOOR_SLOT: u64 = 7;
+pub const ANGSTROM_L2_JIT_TAX_ENABLED_SLOT: u64 = 8;
+
+// Backward compatibility with pre-swapFee deployments.
+const ANGSTROM_L2_LEGACY_POOL_KEYS_SLOT: u64 = 5;
+
+async fn angstrom_l2_pool_keys_slot_and_length<F: StorageSlotFetcher>(
+    slot_fetcher: &F,
+    hook_address: Address,
+    block_id: BlockId
+) -> eyre::Result<(u64, u64)> {
+    let current_length = slot_fetcher
+        .storage_at(hook_address, U256::from(ANGSTROM_L2_POOL_KEYS_SLOT).into(), block_id)
+        .await?
+        .to::<u64>();
+
+    if current_length != 0 {
+        return Ok((ANGSTROM_L2_POOL_KEYS_SLOT, current_length));
+    }
+
+    let legacy_length = slot_fetcher
+        .storage_at(hook_address, U256::from(ANGSTROM_L2_LEGACY_POOL_KEYS_SLOT).into(), block_id)
+        .await?
+        .to::<u64>();
+
+    if legacy_length != 0 {
+        return Ok((ANGSTROM_L2_LEGACY_POOL_KEYS_SLOT, legacy_length));
+    }
+
+    Ok((ANGSTROM_L2_POOL_KEYS_SLOT, 0))
+}
 
 pub async fn angstrom_l2_pool_keys_stream<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     hook_address: Address,
     block_id: BlockId
 ) -> eyre::Result<Option<Pin<Box<dyn Stream<Item = eyre::Result<V4PoolKey>> + Send + '_>>>> {
-    let length_slot = U256::from(ANGSTROM_L2_POOL_KEYS_SLOT);
-    let array_length = slot_fetcher
-        .storage_at(hook_address, length_slot.into(), block_id)
-        .await?;
-
-    let length = array_length.to::<u64>();
+    let (pool_keys_slot, length) = angstrom_l2_pool_keys_slot_and_length(slot_fetcher, hook_address, block_id).await?;
 
     if length == 0 {
         return Ok(None);
     }
 
+    let length_slot = U256::from(pool_keys_slot);
     let array_data_base_slot = keccak256(length_slot.abi_encode());
     let base_slot_value = U256::from_be_bytes(array_data_base_slot.0);
 
     let stream = (0..length)
         .map(|i| async move {
-            let element_offset = i * 5;
+            let element_offset = i * 3;
 
-            let futures = (0..5).map(|j| {
+            let futures = (0..3).map(|j| {
                 let slot = base_slot_value + U256::from(element_offset) + U256::from(j);
                 slot_fetcher.storage_at(hook_address, slot.into(), block_id)
             });
 
             let slots: Vec<U256> = futures::future::try_join_all(futures).await?;
+            let packed_currency1_fee_tick_spacing = slots[1];
+            let currency_mask = U256::from(U160::MAX);
+            let fee = U24::from(U256::to::<u32>(&((packed_currency1_fee_tick_spacing >> 160) & U256::from(0xFFFFFF))));
+            let tick_spacing_bits = U256::to::<u32>(&((packed_currency1_fee_tick_spacing >> 184) & U256::from(0xFFFFFF)));
 
             let pool_key = V4PoolKey {
-                currency0:   Address::from(U160::from(slots[0])),
-                currency1:   Address::from(U160::from(slots[1])),
-                fee:         U24::from(slots[2].to::<u32>() & 0xFFFFFF),
-                tickSpacing: I24::unchecked_from(((slots[3].to::<u32>() & 0xFFFFFF) as i32) << 8 >> 8),
-                hooks:       Address::from(U160::from(slots[4]))
+                currency0: Address::from(U160::from(slots[0])),
+                currency1: Address::from(U160::from(packed_currency1_fee_tick_spacing & currency_mask)),
+                fee,
+                tickSpacing: I24::unchecked_from(((tick_spacing_bits as i32) << 8) >> 8),
+                hooks: Address::from(U160::from(slots[2]))
             };
 
             eyre::Ok(pool_key)
@@ -250,6 +287,28 @@ pub async fn angstrom_l2_total_tax_fee_rate_e6<F: StorageSlotFetcher>(
     Ok(config.creator_tax_fee_e6 + config.protocol_tax_fee_e6)
 }
 
+pub async fn angstrom_l2_priority_fee_tax_floor<F: StorageSlotFetcher>(
+    slot_fetcher: &F,
+    hook_address: Address,
+    block_id: BlockId
+) -> eyre::Result<U256> {
+    slot_fetcher
+        .storage_at(hook_address, U256::from(ANGSTROM_L2_PRIORITY_FEE_TAX_FLOOR_SLOT).into(), block_id)
+        .await
+}
+
+pub async fn angstrom_l2_jit_tax_enabled<F: StorageSlotFetcher>(
+    slot_fetcher: &F,
+    hook_address: Address,
+    block_id: BlockId
+) -> eyre::Result<bool> {
+    let packed = slot_fetcher
+        .storage_at(hook_address, U256::from(ANGSTROM_L2_JIT_TAX_ENABLED_SLOT).into(), block_id)
+        .await?;
+
+    Ok((packed & U256::from(0xFF)) != U256::ZERO)
+}
+
 #[cfg(test)]
 mod test {
     use alloy_eips::BlockId;
@@ -285,13 +344,40 @@ mod test {
     async fn test_angstrom_l2_pool_keys_filter() {
         let provider = eth_base_provider().await;
 
-        let result =
-            angstrom_l2_pool_keys_filter(&provider, HOOK_ADDRESS, BlockId::number(BLOCK_NUMBER), |key| key.hooks == HOOK_ADDRESS, 1)
-                .await
-                .unwrap();
+        let result = angstrom_l2_pool_keys_filter(
+            &provider,
+            HOOK_ADDRESS,
+            BlockId::number(BLOCK_NUMBER),
+            |key| key.hooks == HOOK_ADDRESS,
+            1
+        )
+        .await
+        .unwrap();
 
         assert!(!result.is_empty());
         assert_eq!(result[0].hooks, HOOK_ADDRESS);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_priority_fee_tax_floor() {
+        let provider = eth_base_provider().await;
+
+        let result = angstrom_l2_priority_fee_tax_floor(&provider, HOOK_ADDRESS, BlockId::number(BLOCK_NUMBER))
+            .await
+            .unwrap();
+
+        assert_eq!(result, U256::ZERO);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_jit_tax_enabled() {
+        let provider = eth_base_provider().await;
+
+        let result = angstrom_l2_jit_tax_enabled(&provider, HOOK_ADDRESS, BlockId::number(BLOCK_NUMBER))
+            .await
+            .unwrap();
+
+        assert!(!result);
     }
 
     #[tokio::test]

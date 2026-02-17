@@ -51,8 +51,7 @@ pub async fn position_manager_pool_key_and_info<F: StorageSlotFetcher>(
     block_id: BlockId,
     token_id: U256
 ) -> eyre::Result<(V4PoolKey, UnpackedPositionInfo)> {
-    let position_info =
-        position_manager_position_info(slot_fetcher, position_manager_address, block_id, token_id).await?;
+    let position_info = position_manager_position_info(slot_fetcher, position_manager_address, block_id, token_id).await?;
     let pool_key_slot_base = U256::from_be_slice(position_manager_pool_key_and_info_slot(position_info).as_slice());
 
     let (slot0, slot1, slot2) = futures::try_join!(
@@ -181,10 +180,13 @@ mod tests {
         let provider = eth_provider().await;
         let block_number = 23998000;
 
-        let results =
-            position_manager_next_token_id(&provider, UNISWAP_V4_CONSTANTS_MAINNET.position_manager(), BlockId::number(block_number))
-                .await
-                .unwrap();
+        let results = position_manager_next_token_id(
+            &provider,
+            UNISWAP_V4_CONSTANTS_MAINNET.position_manager(),
+            BlockId::number(block_number)
+        )
+        .await
+        .unwrap();
 
         assert_eq!(results, U256::from(111343_u128));
     }

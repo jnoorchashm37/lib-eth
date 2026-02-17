@@ -44,10 +44,12 @@ op-alloy-network = { version = "0.23.1", default-features = false }
 
 [features]
 default = ["full", "revm"]
-full = ["v4", "v3", "angstrom"]
+full = ["v4", "v3", "l1-angstrom", "l2-angstrom"]
+
 v4 = []
 v3 = []
-angstrom = []
+l1-angstrom = ["v4"]
+l2-angstrom = ["v4"]
 
 revm = ["dep:revm-database"]
 local-reth = [

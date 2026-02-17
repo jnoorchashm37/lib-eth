@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-#[cfg(feature = "angstrom")]
+#[cfg(any(feature = "l1-angstrom", feature = "l2-angstrom"))]
 pub mod angstrom;
 #[cfg(feature = "v3")]
 pub mod v3;

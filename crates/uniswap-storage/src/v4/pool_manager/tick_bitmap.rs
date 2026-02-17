@@ -392,10 +392,15 @@ mod tests {
         };
         let pool_id = pool_key.into();
 
-        let results =
-            tick_bitmap_from_word(&provider, UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(), pool_id, 346, BlockId::number(block_number))
-                .await
-                .unwrap();
+        let results = tick_bitmap_from_word(
+            &provider,
+            UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
+            pool_id,
+            346,
+            BlockId::number(block_number)
+        )
+        .await
+        .unwrap();
         assert_eq!(results.0, U256::from_str_radix("2854495385411919762116571938898990272765493248", 10).unwrap());
     }
 
