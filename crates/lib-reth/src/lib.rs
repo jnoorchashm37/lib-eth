@@ -20,6 +20,7 @@ pub use regular_reth::*;
 mod regular_reth {
     pub use reth_chainspec::*;
     pub use reth_node_ethereum::EthereumNode;
+    pub use reth_node_types::NodeTypes;
     pub use reth_rpc_eth_api::*;
     pub use reth_storage_api::*;
     pub use revm::*;

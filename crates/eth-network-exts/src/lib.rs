@@ -2,7 +2,7 @@ mod impls;
 pub use impls::*;
 
 pub trait EthNetworkExt: Send + Sync {
-    type AlloyNetwork: alloy_network::Network;
+    type AlloyNetwork: alloy_network::Network + Unpin;
     type RethNode: reth_node_types::NodeTypes;
     /// an arbitrary type extension
     type TypeExt;

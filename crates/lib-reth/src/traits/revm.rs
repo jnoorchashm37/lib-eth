@@ -1,4 +1,4 @@
-use alloy_primitives::B256;
+use alloy_eips::BlockId;
 use revm::{
     Context, DatabaseRef, MainBuilder, MainContext,
     context::{BlockEnv, CfgEnv, Evm, TxEnv},
@@ -15,39 +15,21 @@ pub type RevmEvm<DB> = Evm<
     EthFrame
 >;
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum BlockNumberOrHash {
-    Number(u64),
-    Hash(B256)
-}
-
-impl From<u64> for BlockNumberOrHash {
-    fn from(value: u64) -> Self {
-        Self::Number(value)
-    }
-}
-
-impl From<B256> for BlockNumberOrHash {
-    fn from(value: B256) -> Self {
-        Self::Hash(value)
-    }
-}
-
 /// revm utils
 pub trait EthRevm {
     type InnerDb: DatabaseRef;
 
     /// `makes the inner database fetcher`
-    fn make_inner_db<T: Into<BlockNumberOrHash>>(&self, block: T) -> eyre::Result<Self::InnerDb>;
+    fn make_inner_db(&self, block_id: BlockId) -> eyre::Result<Self::InnerDb>;
 
     /// `makes a new cache db`
-    fn make_cache_db<T: Into<BlockNumberOrHash>>(&self, block: T) -> eyre::Result<CacheDB<Self::InnerDb>> {
-        Ok(CacheDB::new(self.make_inner_db(block)?))
+    fn make_cache_db(&self, block_id: BlockId) -> eyre::Result<CacheDB<Self::InnerDb>> {
+        Ok(CacheDB::new(self.make_inner_db(block_id)?))
     }
 
     /// `makes a new cache db`
-    fn make_empty_evm<T: Into<BlockNumberOrHash>>(&self, block: T) -> eyre::Result<RevmEvm<CacheDB<Self::InnerDb>>> {
-        let cache = self.make_cache_db(block)?;
+    fn make_empty_evm(&self, block_id: BlockId) -> eyre::Result<RevmEvm<CacheDB<Self::InnerDb>>> {
+        let cache = self.make_cache_db(block_id)?;
         let evm = Context::mainnet().with_db(cache).build_mainnet();
         Ok(evm)
     }

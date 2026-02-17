@@ -75,38 +75,6 @@ jobs:
       - name: cargo clippy --workspace --all-targets --all-features -- -D warnings
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-  cargo-fix:
-    name: cargo fix
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check-Out
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: stable
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: cargo-fix
-          cache-on-failure: true
-
-      - name: cargo clippy --workspace --all-targets --all-features -- -D warnings
-        run: |
-          # Run cargo fix on the project
-          cargo clippy --workspace --all-targets --all-features -- -D warnings
-
-          # Check for local git changes
-          if ! git diff --exit-code; then
-              echo "There are local changes after running 'cargo clippy --workspace --all-targets --all-features' ❌"
-              exit 1
-          else
-              echo "No changes detected after running 'cargo clippy --workspace --all-targets --all-features' ✅"
-          fi
-
   cargo-test:
     name: cargo test
     runs-on: ubuntu-latest

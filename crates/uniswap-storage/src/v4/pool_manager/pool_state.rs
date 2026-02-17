@@ -1,3 +1,4 @@
+use alloy_eips::BlockId;
 use alloy_primitives::{Address, B256, U256, keccak256};
 use alloy_sol_types::SolValue;
 
@@ -20,7 +21,7 @@ pub async fn pool_manager_pool_fee_growth_global<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     pool_manager_address: Address,
     pool_id: B256,
-    block_number: Option<u64>
+    block_id: BlockId
 ) -> eyre::Result<(U256, U256)> {
     let pool_state_slot = pool_manager_pool_state_slot(pool_id.into());
     let pool_state_slot_base = U256::from_be_slice(pool_state_slot.as_slice());
@@ -31,8 +32,8 @@ pub async fn pool_manager_pool_fee_growth_global<F: StorageSlotFetcher>(
         pool_state_slot_base + U256::from(POOL_MANAGER_POOL_FEE_GROWTH_GLOBAL1_X128_SLOT_OFFSET);
 
     let (fee_growth_global0_x128, fee_growth_global1_x128) = futures::try_join!(
-        slot_fetcher.storage_at(pool_manager_address, fee_growth_global0_x128_slot.into(), block_number),
-        slot_fetcher.storage_at(pool_manager_address, fee_growth_global1_x128_slot.into(), block_number)
+        slot_fetcher.storage_at(pool_manager_address, fee_growth_global0_x128_slot.into(), block_id),
+        slot_fetcher.storage_at(pool_manager_address, fee_growth_global1_x128_slot.into(), block_id)
     )?;
 
     Ok((fee_growth_global0_x128, fee_growth_global1_x128))
@@ -42,12 +43,12 @@ pub async fn pool_manager_pool_slot0<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     pool_manager_address: Address,
     pool_id: B256,
-    block_number: Option<u64>
+    block_id: BlockId
 ) -> eyre::Result<UnpackedSlot0> {
     let pool_state_slot = pool_manager_pool_state_slot(pool_id.into());
 
     let packed_slot0 = slot_fetcher
-        .storage_at(pool_manager_address, pool_state_slot, block_number)
+        .storage_at(pool_manager_address, pool_state_slot, block_id)
         .await?;
 
     Ok(packed_slot0.unpack_slot0())
@@ -57,7 +58,7 @@ pub async fn pool_manager_pool_liquidity<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     pool_manager_address: Address,
     pool_id: B256,
-    block_number: Option<u64>
+    block_id: BlockId
 ) -> eyre::Result<U256> {
     let pool_state_slot = pool_manager_pool_state_slot(pool_id.into());
     let pool_state_slot_base = U256::from_be_slice(pool_state_slot.as_slice());
@@ -65,7 +66,7 @@ pub async fn pool_manager_pool_liquidity<F: StorageSlotFetcher>(
     let liquidity_slot = pool_state_slot_base + U256::from(POOL_MANAGER_POOL_LIQUIDITY_SLOT_OFFSET);
 
     let liquidity = slot_fetcher
-        .storage_at(pool_manager_address, liquidity_slot.into(), block_number)
+        .storage_at(pool_manager_address, liquidity_slot.into(), block_id)
         .await?;
 
     Ok(liquidity)
@@ -73,7 +74,7 @@ pub async fn pool_manager_pool_liquidity<F: StorageSlotFetcher>(
 
 #[cfg(test)]
 mod tests {
-
+    use alloy_eips::BlockId;
     use alloy_primitives::{
         U160,
         aliases::{I24, U24}
@@ -103,7 +104,7 @@ mod tests {
             &provider,
             UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
             pool_key.into(),
-            Some(block_number)
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -134,7 +135,7 @@ mod tests {
             &provider,
             UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
             pool_key.into(),
-            Some(block_number)
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -166,7 +167,7 @@ mod tests {
             &provider,
             UNISWAP_V4_CONSTANTS_MAINNET.pool_manager(),
             pool_key.into(),
-            Some(block_number)
+            BlockId::number(block_number)
         )
         .await
         .unwrap();

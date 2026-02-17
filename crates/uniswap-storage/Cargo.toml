@@ -21,31 +21,35 @@ alloy-network.workspace = true
 
 revm-database = { workspace = true, optional = true, features = ["alloydb"] }
 reth-provider = { workspace = true, optional = true }
+reth-optimism-rpc = { workspace = true, optional = true }
 reth-rpc = { workspace = true, optional = true }
 reth-rpc-convert = { workspace = true, optional = true }
-eth-network-exts.workspace = true
 
 futures.workspace = true
 serde = { version = "1", features = ["derive"] }
-auto_impl = "1.3"
-eyre = "0.6.12"
+auto_impl.workspace = true
+eyre.workspace = true
 itertools = "0.14"
-async-trait = "0"
+async-trait.workspace = true
+
 
 [dev-dependencies]
-alloy-provider = { version = "1.1.3", default-features = false, features = [
+alloy-provider = { workspace = true, default-features = false, features = [
     "pubsub",
     "ws",
 ] }
-tokio = { version = "1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 dotenv = "0.15"
+op-alloy-network = { version = "0.23.1", default-features = false }
 
 [features]
-default = ["full", "revm"]
-full = ["v4", "v3", "angstrom"]
+default = ["v4", "v3", "l1-angstrom", "revm"]
+full = ["v4", "v3", "l1-angstrom", "l2-angstrom"]
+
 v4 = []
 v3 = []
-angstrom = []
+l1-angstrom = ["v4"]
+l2-angstrom = ["v4"]
 
 revm = ["dep:revm-database"]
 local-reth = [
@@ -53,4 +57,5 @@ local-reth = [
     "dep:reth-provider",
     "dep:reth-rpc",
     "dep:reth-rpc-convert",
+    "dep:reth-optimism-rpc",
 ]

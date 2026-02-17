@@ -1,3 +1,4 @@
+use alloy_eips::BlockId;
 use alloy_primitives::{Address, B256, U256, aliases::I24, keccak256};
 use alloy_sol_types::SolValue;
 
@@ -25,12 +26,12 @@ pub async fn angstrom_growth_inside<F: StorageSlotFetcher>(
     current_pool_tick: I24,
     tick_lower: I24,
     tick_upper: I24,
-    block_number: Option<u64>
+    block_id: BlockId
 ) -> eyre::Result<U256> {
     let (lower_growth, upper_growth, global_growth) = futures::try_join!(
-        angstrom_tick_growth_outside(slot_fetcher, angstrom_address, pool_id, tick_lower, block_number,),
-        angstrom_tick_growth_outside(slot_fetcher, angstrom_address, pool_id, tick_upper, block_number,),
-        angstrom_global_growth(slot_fetcher, angstrom_address, pool_id, block_number,),
+        angstrom_tick_growth_outside(slot_fetcher, angstrom_address, pool_id, tick_lower, block_id,),
+        angstrom_tick_growth_outside(slot_fetcher, angstrom_address, pool_id, tick_upper, block_id,),
+        angstrom_global_growth(slot_fetcher, angstrom_address, pool_id, block_id,),
     )?;
 
     let rewards = if current_pool_tick < tick_lower {
@@ -48,14 +49,14 @@ pub async fn angstrom_global_growth<F: StorageSlotFetcher>(
     slot_fetcher: &F,
     angstrom_address: Address,
     pool_id: B256,
-    block_number: Option<u64>
+    block_id: BlockId
 ) -> eyre::Result<U256> {
     let pool_rewards_slot_base = U256::from_be_bytes(angstrom_pool_rewards_slot(pool_id).0);
     let global_growth = slot_fetcher
         .storage_at(
             angstrom_address,
             (pool_rewards_slot_base + U256::from(ANGSTROM_POOL_REWARDS_GROWTH_ARRAY_SIZE)).into(),
-            block_number
+            block_id
         )
         .await?;
 
@@ -67,14 +68,14 @@ pub async fn angstrom_tick_growth_outside<F: StorageSlotFetcher>(
     angstrom_address: Address,
     pool_id: B256,
     tick: I24,
-    block_number: Option<u64>
+    block_id: BlockId
 ) -> eyre::Result<U256> {
     let pool_rewards_slot_base = U256::from_be_bytes(angstrom_pool_rewards_slot(pool_id).0);
     let growth_outside = slot_fetcher
         .storage_at(
             angstrom_address,
             (pool_rewards_slot_base + U256::from_be_slice(&tick.to_be_bytes::<3>())).into(),
-            block_number
+            block_id
         )
         .await?;
 
@@ -89,13 +90,13 @@ pub async fn angstrom_last_growth_inside<F: StorageSlotFetcher>(
     position_token_id: U256,
     tick_lower: I24,
     tick_upper: I24,
-    block_number: Option<u64>
+    block_id: BlockId
 ) -> eyre::Result<U256> {
     let position_key = encode_position_key(position_manager_address, position_token_id, tick_lower, tick_upper);
     let position_slot_base = U256::from_be_bytes(angstrom_position_slot(pool_id, position_key).0);
 
     let growth = slot_fetcher
-        .storage_at(angstrom_address, position_slot_base.into(), block_number)
+        .storage_at(angstrom_address, position_slot_base.into(), block_id)
         .await?;
 
     Ok(growth)
@@ -104,6 +105,7 @@ pub async fn angstrom_last_growth_inside<F: StorageSlotFetcher>(
 #[cfg(test)]
 mod tests {
 
+    use alloy_eips::BlockId;
     use alloy_primitives::aliases::U24;
 
     use super::*;
@@ -133,7 +135,7 @@ mod tests {
             I24::unchecked_from(190088),
             I24::unchecked_from(-887270),
             I24::unchecked_from(887270),
-            Some(block_number)
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -162,7 +164,7 @@ mod tests {
             U256::from(96348_u64),
             I24::unchecked_from(193290),
             I24::unchecked_from(196300),
-            Some(block_number)
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -187,7 +189,7 @@ mod tests {
             &provider,
             ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address(),
             pool_key.into(),
-            Some(block_number)
+            BlockId::number(block_number)
         )
         .await
         .unwrap();
@@ -213,7 +215,7 @@ mod tests {
             ANGSTROM_L1_CONSTANTS_MAINNET.angstrom_address(),
             pool_key.into(),
             I24::unchecked_from(193290),
-            Some(block_number)
+            BlockId::number(block_number)
         )
         .await
         .unwrap();

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+#[cfg(feature = "revm")]
+use alloy_eips::BlockId;
 use alloy_provider::{IpcConnect, RootProvider, WsConnect, builder};
 use eth_network_exts::EthNetworkExt;
 use reth_node_types::NodeTypes;
@@ -9,8 +11,6 @@ use reth_provider::{
 use reth_rpc_eth_api::{EthApiTypes, FullEthApiServer, RpcNodeCore, helpers::FullEthApi};
 use reth_tasks::TaskSpawner;
 
-#[cfg(feature = "revm")]
-use crate::traits::BlockNumberOrHash;
 use crate::{reth_libmdbx::DbConfig, traits::EthStream};
 
 pub mod node;
@@ -126,17 +126,10 @@ where
 {
     type InnerDb = crate::traits::reth_revm_utils::RethLibmdbxDatabaseRef;
 
-    fn make_inner_db<T: Into<BlockNumberOrHash>>(&self, block: T) -> eyre::Result<Self::InnerDb> {
+    fn make_inner_db(&self, block: BlockId) -> eyre::Result<Self::InnerDb> {
         use reth_provider::StateProviderFactory;
 
-        let block: BlockNumberOrHash = block.into();
-
-        let state_provider = match block {
-            BlockNumberOrHash::Number(num) => self
-                .eth_db_provider()
-                .state_by_block_number_or_tag(num.into())?,
-            BlockNumberOrHash::Hash(hash) => self.eth_db_provider().state_by_block_hash(hash)?
-        };
+        let state_provider = self.eth_db_provider().state_by_block_id(block)?;
 
         let this = reth_revm::database::StateProviderDatabase::new(state_provider);
         Ok(crate::traits::reth_revm_utils::RethLibmdbxDatabaseRef::new(this))
