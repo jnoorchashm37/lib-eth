@@ -16,6 +16,7 @@ pub struct RethNodeClientBuilder<Ext: EthNetworkExt> {
     max_tasks:           usize,
     db_args:             Option<DatabaseArguments>,
     chain:               Arc<<Ext::RethNode as NodeTypes>::ChainSpec>,
+    max_read_tx_secs:    MaxReadTransactionDuration,
     ipc_path_or_rpc_url: Option<String>
 }
 
@@ -27,14 +28,18 @@ where
         db_path: &str,
         max_tasks: usize,
         chain: Arc<<Ext::RethNode as NodeTypes>::ChainSpec>,
-        ipc_path_or_rpc_url: Option<&str>
+        ipc_path_or_rpc_url: Option<&str>,
+        max_read_tx_secs: Option<u64>
     ) -> Self {
         Self {
             db_path: db_path.to_string(),
             max_tasks,
             db_args: None,
             chain,
-            ipc_path_or_rpc_url: ipc_path_or_rpc_url.map(|a| a.to_string())
+            ipc_path_or_rpc_url: ipc_path_or_rpc_url.map(|a| a.to_string()),
+            max_read_tx_secs: max_read_tx_secs
+                .map(|s| MaxReadTransactionDuration::Set(std::time::Duration::from_secs(s)))
+                .unwrap_or(MaxReadTransactionDuration::Unbounded)
         }
     }
 
@@ -54,9 +59,7 @@ where
         let (db_path, static_files_path, rocksdb_path) = self.db_paths()?;
 
         let db_args = self.db_args.unwrap_or_else(|| {
-            DatabaseArguments::new(Default::default()).with_max_read_transaction_duration(Some(
-                MaxReadTransactionDuration::Set(std::time::Duration::from_secs(120))
-            ))
+            DatabaseArguments::new(Default::default()).with_max_read_transaction_duration(Some(self.max_read_tx_secs))
         });
 
         let db_config = DbConfig { db_path, static_files_path, rocksdb_path, db_args };

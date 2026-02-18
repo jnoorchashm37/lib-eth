@@ -152,7 +152,8 @@ mod tests {
             BASE_MAINNET_DB_PATH,
             1000,
             BASE_MAINNET.clone(),
-            Some(BASE_MAINNET_IPC_PATH)
+            Some(BASE_MAINNET_IPC_PATH),
+            None
         );
         assert!(builder.build().is_ok())
     }
@@ -164,7 +165,8 @@ mod tests {
             BASE_MAINNET_DB_PATH,
             1000,
             BASE_MAINNET.clone(),
-            Some(BASE_MAINNET_IPC_PATH)
+            Some(BASE_MAINNET_IPC_PATH),
+            None
         );
         let client = builder.build().unwrap();
 
@@ -179,7 +181,8 @@ mod tests {
             BASE_MAINNET_DB_PATH,
             1000,
             BASE_MAINNET.clone(),
-            Some(BASE_MAINNET_IPC_PATH)
+            Some(BASE_MAINNET_IPC_PATH),
+            None
         );
         let client = builder.build().unwrap();
 
@@ -194,7 +197,8 @@ mod tests {
             BASE_MAINNET_DB_PATH,
             1000,
             BASE_MAINNET.clone(),
-            Some(BASE_MAINNET_IPC_PATH)
+            Some(BASE_MAINNET_IPC_PATH),
+            None
         );
         let client = builder.build().unwrap();
 
@@ -209,7 +213,8 @@ mod tests {
             BASE_MAINNET_DB_PATH,
             1000,
             BASE_MAINNET.clone(),
-            Some(BASE_MAINNET_IPC_PATH)
+            Some(BASE_MAINNET_IPC_PATH),
+            None
         );
         let client = builder.build().unwrap();
 
