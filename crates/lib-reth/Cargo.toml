@@ -110,6 +110,7 @@ op-reth-libmdbx = [
     "dep:reth-optimism-rpc",
     "dep:op-alloy-network",
     "dep:op-alloy-consensus",
+    "uniswap-storage/l2-angstrom",
 ]
 
 reth-libmdbx = [
