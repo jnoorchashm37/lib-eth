@@ -16,6 +16,9 @@ use std::{
     thread
 };
 
+#[cfg(feature = "rayon")]
+pub use runtime::RayonConfig;
+pub use runtime::{Runtime, RuntimeBuildError, RuntimeBuilder, RuntimeConfig, TokioConfig};
 use tokio::{
     runtime::Handle,
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender}
@@ -23,20 +26,6 @@ use tokio::{
 use tracing::debug;
 
 use crate::shutdown::{signal, Shutdown, Signal};
-
-#[cfg(feature = "rayon")]
-pub mod pool;
-#[cfg(feature = "rayon")]
-pub use pool::{Worker, WorkerPool};
-
-/// Lock-free ordered parallel iterator extension trait.
-#[cfg(feature = "rayon")]
-pub mod for_each_ordered;
-#[cfg(feature = "rayon")]
-pub use for_each_ordered::ForEachOrdered;
-#[cfg(feature = "rayon")]
-pub use runtime::RayonConfig;
-pub use runtime::{Runtime, RuntimeBuildError, RuntimeBuilder, RuntimeConfig, TokioConfig};
 
 /// A [`TaskExecutor`] is now an alias for [`Runtime`].
 pub type TaskExecutor = Runtime;

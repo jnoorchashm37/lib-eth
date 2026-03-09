@@ -10,13 +10,15 @@
 |------------------------------------+----------------------------------------+------+--------+-------+---------------------------------------------|
 | defaultJITTaxEnabled               | bool                                   | 0    | 7      | 1     | src/AngstromL2Factory.sol:AngstromL2Factory |
 |------------------------------------+----------------------------------------+------+--------+-------+---------------------------------------------|
-| defaultPriorityFeeTaxFloor         | uint256                                | 1    | 0      | 32    | src/AngstromL2Factory.sol:AngstromL2Factory |
+| defaultSwapMEVTaxFactor            | uint256                                | 1    | 0      | 32    | src/AngstromL2Factory.sol:AngstromL2Factory |
 |------------------------------------+----------------------------------------+------+--------+-------+---------------------------------------------|
-| isVerifiedHook                     | mapping(contract AngstromL2 => bool)   | 2    | 0      | 32    | src/AngstromL2Factory.sol:AngstromL2Factory |
+| defaultPriorityFeeTaxFloor         | uint256                                | 2    | 0      | 32    | src/AngstromL2Factory.sol:AngstromL2Factory |
 |------------------------------------+----------------------------------------+------+--------+-------+---------------------------------------------|
-| allHooks                           | contract AngstromL2[]                  | 3    | 0      | 32    | src/AngstromL2Factory.sol:AngstromL2Factory |
+| isVerifiedHook                     | mapping(contract AngstromL2 => bool)   | 3    | 0      | 32    | src/AngstromL2Factory.sol:AngstromL2Factory |
 |------------------------------------+----------------------------------------+------+--------+-------+---------------------------------------------|
-| hookPoolIds                        | mapping(PoolId => contract AngstromL2) | 4    | 0      | 32    | src/AngstromL2Factory.sol:AngstromL2Factory |
+| allHooks                           | contract AngstromL2[]                  | 4    | 0      | 32    | src/AngstromL2Factory.sol:AngstromL2Factory |
+|------------------------------------+----------------------------------------+------+--------+-------+---------------------------------------------|
+| hookPoolIds                        | mapping(PoolId => contract AngstromL2) | 5    | 0      | 32    | src/AngstromL2Factory.sol:AngstromL2Factory |
 ╰------------------------------------+----------------------------------------+------+--------+-------+---------------------------------------------╯
 
 
@@ -31,10 +33,11 @@ use crate::{StorageSlotFetcher, angstrom::l2::AngstromL2FactorySlot0};
 
 // Storage slot constants
 pub const ANGSTROM_L2_FACTORY_SLOT_0: u64 = 0; // withdrawOnly, defaultProtocolSwapFeeAsMultipleE6, defaultProtocolTaxFeeE6, defaultJITTaxEnabled
-pub const ANGSTROM_L2_FACTORY_DEFAULT_PRIORITY_FEE_TAX_FLOOR_SLOT: u64 = 1;
-pub const ANGSTROM_L2_FACTORY_IS_VERIFIED_HOOK_SLOT: u64 = 2;
-pub const ANGSTROM_L2_FACTORY_ALL_HOOKS_SLOT: u64 = 3;
-pub const ANGSTROM_L2_FACTORY_HOOK_POOL_IDS_SLOT: u64 = 4;
+pub const ANGSTROM_L2_FACTORY_DEFAULT_SWAP_MEV_TAX_FACTOR_SLOT: u64 = 1;
+pub const ANGSTROM_L2_FACTORY_DEFAULT_PRIORITY_FEE_TAX_FLOOR_SLOT: u64 = 2;
+pub const ANGSTROM_L2_FACTORY_IS_VERIFIED_HOOK_SLOT: u64 = 3;
+pub const ANGSTROM_L2_FACTORY_ALL_HOOKS_SLOT: u64 = 4;
+pub const ANGSTROM_L2_FACTORY_HOOK_POOL_IDS_SLOT: u64 = 5;
 
 /// Gets the packed slot 0 data which contains withdrawOnly,
 /// defaultProtocolSwapFeeAsMultipleE6, defaultProtocolTaxFeeE6, and
@@ -49,6 +52,17 @@ pub async fn angstrom_l2_factory_get_slot0<F: StorageSlotFetcher>(
         .await?;
 
     Ok(AngstromL2FactorySlot0::from(out))
+}
+
+/// Gets defaultSwapMEVTaxFactor
+pub async fn angstrom_l2_factory_default_swap_mev_tax_factor<F: StorageSlotFetcher>(
+    slot_fetcher: &F,
+    factory_address: Address,
+    block_id: BlockId
+) -> eyre::Result<U256> {
+    slot_fetcher
+        .storage_at(factory_address, U256::from(ANGSTROM_L2_FACTORY_DEFAULT_SWAP_MEV_TAX_FACTOR_SLOT).into(), block_id)
+        .await
 }
 
 /// Gets defaultPriorityFeeTaxFloor
@@ -174,12 +188,27 @@ mod test {
 
         let expected = AngstromL2FactorySlot0 {
             withdraw_only: false,
-            default_protocol_swap_fee_as_multiple_e6: U24::ZERO,
-            default_protocol_tax_fee_e6: U24::ZERO,
+            default_protocol_swap_fee_as_multiple_e6: U24::from(250000u64),
+            default_protocol_tax_fee_e6: U24::from(100000u64),
             default_jit_tax_enabled: false
         };
 
         assert_eq!(result, expected);
+    }
+
+    #[tokio::test]
+    async fn test_angstrom_l2_factory_default_swap_mev_tax_factor() {
+        let provider = eth_base_provider().await;
+
+        let result = angstrom_l2_factory_default_swap_mev_tax_factor(
+            &provider,
+            ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
+            BlockId::number(BLOCK_NUMBER)
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result, U256::from(99u64));
     }
 
     #[tokio::test]
@@ -194,7 +223,7 @@ mod test {
         .await
         .unwrap();
 
-        assert_eq!(result, U256::ZERO);
+        assert_eq!(result, U256::from(10000000u64));
     }
 
     #[tokio::test]
@@ -225,7 +254,7 @@ mod test {
         .await
         .unwrap();
 
-        assert_eq!(result, 1);
+        assert_eq!(result, 3);
     }
 
     #[tokio::test]
@@ -248,15 +277,23 @@ mod test {
     async fn test_angstrom_l2_factory_all_hooks() {
         let provider = eth_base_provider().await;
 
-        let result = angstrom_l2_factory_all_hooks(
+        let mut result = angstrom_l2_factory_all_hooks(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
             BlockId::number(BLOCK_NUMBER)
         )
         .await
         .unwrap();
+        result.sort();
 
-        assert_eq!(result, vec![HOOK_ADDRESS]);
+        let mut expected = vec![
+            HOOK_ADDRESS,
+            address!("0xf2c78c1dbea9e5af3f5f4c1fa20af16415e6e5cf"),
+            address!("0xf96510247aba6a6b997b60ac4d98bb51aff265cf"),
+        ];
+        expected.sort();
+
+        assert_eq!(result, expected);
     }
 
     #[tokio::test]
