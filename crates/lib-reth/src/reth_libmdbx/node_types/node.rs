@@ -7,7 +7,10 @@ use reth_db::{DatabaseEnv, open_db_read_only};
 use reth_network_api::noop::NoopNetwork;
 use reth_node_ethereum::{EthEvmConfig, EthereumNode};
 use reth_node_types::NodeTypesWithDBAdapter;
-use reth_provider::providers::{BlockchainProvider, RocksDBProvider, StaticFileProvider};
+use reth_provider::{
+    ProviderFactory,
+    providers::{BlockchainProvider, RocksDBProvider, StaticFileProvider}
+};
 use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
 use reth_rpc_eth_api::{RpcConverter, node::RpcNodeCoreAdapter};
 use reth_rpc_eth_types::{EthConfig, EthFilterConfig, receipt::EthReceiptConverter};
@@ -27,7 +30,7 @@ type RethFilter = EthFilter<RethApi>;
 type RethTrace = TraceApi<RethApi>;
 type RethDebug = DebugApi<RethApi>;
 type RethTxPool = Pool<
-    TransactionValidationTaskExecutor<EthTransactionValidator<RethDbProvider, EthPooledTransaction>>,
+    TransactionValidationTaskExecutor<EthTransactionValidator<RethDbProvider, EthPooledTransaction, EthEvmConfig>>,
     CoinbaseTipOrdering<EthPooledTransaction>,
     NoopBlobStore
 >;
@@ -55,24 +58,26 @@ impl NodeClientSpec for EthereumNode {
         let db = Arc::new(open_db_read_only(db_config.db_path, db_config.db_args)?);
 
         let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone(), true)?;
-        let rocksdb_provider = RocksDBProvider::builder(&db_config.rocksdb_path).build()?;
-        let provider_factory = EthereumNode::provider_factory_builder()
-            .db(db)
-            .chainspec(chain_spec.clone())
-            .static_file(static_file_provider)
-            .rocksdb_provider(rocksdb_provider)
-            .build_provider_factory()?;
+        let rocksdb_provider = RocksDBProvider::builder(&db_config.rocksdb_path)
+            .with_default_tables()
+            .build()?;
+        let provider_factory = ProviderFactory::new(
+            db,
+            chain_spec.clone(),
+            static_file_provider,
+            rocksdb_provider,
+            super::provider_runtime()?
+        )?;
 
         let blockchain_provider = BlockchainProvider::new(provider_factory.clone())?;
 
-        let transaction_validator = EthTransactionValidatorBuilder::new(blockchain_provider.clone())
+        let evm_config = EthEvmConfig::mainnet();
+        let transaction_validator = EthTransactionValidatorBuilder::new(blockchain_provider.clone(), evm_config.clone())
             .build_with_tasks(task_executor.clone(), NoopBlobStore::default());
 
         let tx_pool = Pool::eth_pool(transaction_validator, NoopBlobStore::default(), PoolConfig::default());
 
-        let api =
-            EthApi::builder(blockchain_provider.clone(), tx_pool.clone(), NoopNetwork::default(), EthEvmConfig::mainnet())
-                .build();
+        let api = EthApi::builder(blockchain_provider.clone(), tx_pool.clone(), NoopNetwork::default(), evm_config).build();
 
         let tracing_call_guard = BlockingTaskGuard::new(max_tasks);
         let trace = TraceApi::new(api.clone(), tracing_call_guard.clone(), EthConfig::default());

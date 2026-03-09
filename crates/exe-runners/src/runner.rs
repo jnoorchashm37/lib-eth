@@ -4,7 +4,7 @@
 
 use std::{future::Future, pin::pin, sync::mpsc, time::Duration};
 
-use reth_tasks::{PanickedTaskError, TaskExecutor, TaskManager};
+use reth_tasks::{PanickedTaskError, TaskExecutor};
 use tracing::{debug, error, info};
 
 /// Executes CLI commands.
@@ -56,12 +56,12 @@ impl CliRunner {
         F: Future<Output = Result<(), E>>,
         E: Send + Sync + From<std::io::Error> + From<PanickedTaskError> + 'static
     {
-        let (context, mut task_manager) = cli_context(self.runtime.handle());
+        let (context, task_executor, task_manager_handle) = cli_context(self.runtime.handle());
 
         // Executes the command until it finished or ctrl-c was fired
         let command_res = self
             .runtime
-            .block_on(run_to_completion_or_panic(&mut task_manager, run_until_ctrl_c(command(context))));
+            .block_on(run_to_completion_or_panic(task_manager_handle, run_until_ctrl_c(command(context))));
 
         if command_res.is_err() {
             error!("shutting down due to error");
@@ -70,7 +70,7 @@ impl CliRunner {
             // after the command has finished or exit signal was received we shutdown the
             // runtime which fires the shutdown signal to all tasks spawned via the task
             // executor and awaiting on tasks spawned with graceful shutdown
-            task_manager.graceful_shutdown_with_timeout(self.config.graceful_shutdown_timeout);
+            task_executor.graceful_shutdown_with_timeout(self.config.graceful_shutdown_timeout);
         }
 
         runtime_shutdown(self.runtime, true);
@@ -89,7 +89,7 @@ impl CliRunner {
         F: Future<Output = Result<(), E>> + Send + 'static,
         E: Send + Sync + From<std::io::Error> + From<PanickedTaskError> + 'static
     {
-        let (context, mut task_manager) = cli_context(self.runtime.handle());
+        let (context, task_executor, task_manager_handle) = cli_context(self.runtime.handle());
 
         // Spawn the command on the blocking thread pool
         let handle = self.runtime.handle().clone();
@@ -98,7 +98,7 @@ impl CliRunner {
 
         // Wait for the command to complete or ctrl-c
         let command_res = self.runtime.block_on(run_to_completion_or_panic(
-            &mut task_manager,
+            task_manager_handle,
             run_until_ctrl_c(async move { command_handle.await.expect("Failed to join blocking task") })
         ));
 
@@ -106,7 +106,7 @@ impl CliRunner {
             error!("shutting down due to error");
         } else {
             debug!("shutting down gracefully");
-            task_manager.graceful_shutdown_with_timeout(self.config.graceful_shutdown_timeout);
+            task_executor.graceful_shutdown_with_timeout(self.config.graceful_shutdown_timeout);
         }
 
         runtime_shutdown(self.runtime, true);
@@ -147,10 +147,15 @@ impl CliRunner {
 }
 
 /// Creates a task manager and the corresponding [`CliContext`] for commands.
-fn cli_context(runtime: &tokio::runtime::Handle) -> (CliContext, TaskManager) {
-    let task_manager = TaskManager::new(runtime.clone());
-    let context = CliContext { task_executor: task_manager.executor() };
-    (context, task_manager)
+fn cli_context(
+    runtime: &tokio::runtime::Handle
+) -> (CliContext, TaskExecutor, tokio::task::JoinHandle<Result<(), PanickedTaskError>>) {
+    let task_executor = TaskExecutor::with_existing_handle(runtime.clone()).expect("failed to attach task runtime");
+    let task_manager_handle = task_executor
+        .take_task_manager_handle()
+        .expect("task runtime missing task manager handle");
+    let context = CliContext { task_executor: task_executor.clone() };
+    (context, task_executor, task_manager_handle)
 }
 
 /// Additional context provided by the [`CliRunner`] when executing commands
@@ -195,17 +200,22 @@ impl CliRunnerConfig {
 /// Runs the given future to completion or until a critical task panicked.
 ///
 /// Returns the error if a task panicked, or the given future returned an error.
-async fn run_to_completion_or_panic<F, E>(task_manager: &mut TaskManager, fut: F) -> Result<(), E>
+async fn run_to_completion_or_panic<F, E>(
+    task_manager_handle: tokio::task::JoinHandle<Result<(), PanickedTaskError>>,
+    fut: F
+) -> Result<(), E>
 where
     F: Future<Output = Result<(), E>>,
-    E: Send + Sync + From<PanickedTaskError> + 'static
+    E: Send + Sync + From<std::io::Error> + From<PanickedTaskError> + 'static
 {
     let fut = pin!(fut);
+    let task_manager_handle = pin!(task_manager_handle);
     tokio::select! {
-        task_manager_result = task_manager => {
+        task_manager_result = task_manager_handle => {
             match task_manager_result {
-                Ok(()) => return Ok(()),
-                Err(panicked_error) => return Err(panicked_error.into())
+                Ok(Ok(())) => return Ok(()),
+                Ok(Err(panicked_error)) => return Err(panicked_error.into()),
+                Err(join_error) => return Err(std::io::Error::other(join_error).into())
             }
         },
         res = fut => res?,

@@ -17,6 +17,15 @@ pub mod node;
 #[cfg(feature = "op-reth-libmdbx")]
 pub mod op_node;
 
+pub(crate) fn provider_runtime() -> eyre::Result<reth_tasks::Runtime> {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => reth_tasks::Runtime::with_existing_handle(handle).map_err(Into::into),
+        Err(_) => reth_tasks::RuntimeBuilder::new(reth_tasks::RuntimeConfig::default())
+            .build()
+            .map_err(Into::into)
+    }
+}
+
 pub trait NodeClientSpec: NodeTypes + Send + Sync {
     type Api: FullEthApi + FullEthApiServer + EthApiTypes + RpcNodeCore + Clone + Send + Sync;
     type Filter: Clone + Send + Sync;

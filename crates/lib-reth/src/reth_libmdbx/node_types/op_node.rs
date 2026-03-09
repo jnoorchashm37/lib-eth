@@ -19,7 +19,10 @@ use reth_optimism_rpc::{
     OpEthApi,
     eth::{receipt::OpReceiptConverter, transaction::OpTxInfoMapper}
 };
-use reth_provider::providers::{BlockchainProvider, RocksDBProvider, StaticFileProvider};
+use reth_provider::{
+    ProviderFactory,
+    providers::{BlockchainProvider, RocksDBProvider, StaticFileProvider}
+};
 use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
 use reth_rpc_eth_api::{RpcConverter, TxInfoMapper, node::RpcNodeCoreAdapter};
 use reth_rpc_eth_types::{EthConfig, EthFilterConfig};
@@ -39,7 +42,7 @@ type OpRethFilter = EthFilter<OpRethApi>;
 type OpRethTrace = TraceApi<OpRethApi>;
 type OpRethDebug = DebugApi<OpRethApi>;
 type OpRethTxPool = Pool<
-    TransactionValidationTaskExecutor<OpTransactionValidator<OpRethDbProvider, OpPooledTransaction>>,
+    TransactionValidationTaskExecutor<OpTransactionValidator<OpRethDbProvider, OpPooledTransaction, OpEvmConfig>>,
     CoinbaseTipOrdering<OpPooledTransaction>,
     NoopBlobStore
 >;
@@ -68,17 +71,22 @@ impl NodeClientSpec for OpNode {
         let db = Arc::new(open_db_read_only(db_config.db_path, db_config.db_args)?);
 
         let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone(), true)?;
-        let rocksdb_provider = RocksDBProvider::builder(&db_config.rocksdb_path).build()?;
-        let provider_factory = OpNode::provider_factory_builder()
-            .db(db)
-            .chainspec(chain_spec.clone())
-            .static_file(static_file_provider)
-            .rocksdb_provider(rocksdb_provider)
-            .build_provider_factory()?;
+        let rocksdb_provider = RocksDBProvider::builder(&db_config.rocksdb_path)
+            .with_default_tables()
+            .build()?;
+        let provider_factory = ProviderFactory::new(
+            db,
+            chain_spec.clone(),
+            static_file_provider,
+            rocksdb_provider,
+            super::provider_runtime()?
+        )?;
 
         let blockchain_provider = BlockchainProvider::new(provider_factory.clone())?;
 
-        let transaction_validator = EthTransactionValidatorBuilder::new(blockchain_provider.clone())
+        let evm_config = OpEvmConfig::optimism(chain_spec.clone());
+
+        let transaction_validator = EthTransactionValidatorBuilder::new(blockchain_provider.clone(), evm_config.clone())
             .build_with_tasks(task_executor.clone(), NoopBlobStore::default())
             .map(OpTransactionValidator::new);
 
@@ -89,7 +97,6 @@ impl NodeClientSpec for OpNode {
             PoolConfig::default()
         );
 
-        let evm_config = OpEvmConfig::optimism(chain_spec.clone());
         let rpc_converter = RpcConverter::new(OpReceiptConverter::new(blockchain_provider.clone()))
             .with_mapper(OpTxInfoMapper::new(blockchain_provider.clone()));
 
