@@ -156,9 +156,9 @@ mod test {
     use super::*;
     use crate::{angstrom::l2::ANGSTROM_L2_CONSTANTS_BASE_MAINNET, test_utils::eth_base_provider};
 
-    const HOOK_ADDRESS: Address = address!("0xC7F6fFDb7a058ac431b852Bc1bF00cc0Fd4c65Cf");
-    const POOL_ID: B256 = b256!("0x343ee3036741f45b5512ebf7ad0d8ab259dbb8e5a38ff0d19022da176ee04574");
-    const BLOCK_NUMBER: u64 = 40426000;
+    const HOOK_ADDRESS: Address = address!("0x631352Aaa9d6554848aF674106bCD8Bb9E59a5CF");
+    const POOL_ID: B256 = b256!("0x71deb282904d0f76bc8c7867f4618ff91dcb43cf4574bc64700ffc48791d369c");
+    const BLOCK_NUMBER: u64 = 43100000;
 
     #[tokio::test]
     async fn test_angstrom_l2_factory_get_slot0() {
