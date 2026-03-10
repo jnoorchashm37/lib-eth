@@ -80,6 +80,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ETH_WS_URL: ${{ secrets.ETH_WS_URL }} 
+      BASE_WS_URL: ${{ secrets.BASE_WS_URL }} 
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
