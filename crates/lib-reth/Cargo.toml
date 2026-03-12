@@ -127,6 +127,7 @@ reth-libmdbx = [
     "dep:reth-node-types",
     "dep:reth-optimism-primitives",
     "dep:reth-storage-api",
+    "dep:reth-rpc-eth-api",
 ]
 
 uniswap-storage = ["dep:uniswap-storage", "dep:alloy-eips"]
