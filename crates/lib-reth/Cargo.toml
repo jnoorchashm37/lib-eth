@@ -89,7 +89,7 @@ serial_test.workspace = true
 
 
 [features]
-default = ["full", "op-reth-libmdbx"]
+default = ["full"]
 full = ["ipc", "ws", "uniswap-storage", "revm", "reth-libmdbx"]
 
 
@@ -111,6 +111,7 @@ op-reth-libmdbx = [
     "dep:op-alloy-network",
     "dep:op-alloy-consensus",
     "uniswap-storage/l2-angstrom",
+    "eth-network-exts/l2",
 ]
 
 reth-libmdbx = [

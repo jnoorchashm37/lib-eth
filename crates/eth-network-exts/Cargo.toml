@@ -12,7 +12,12 @@ path = "src/lib.rs"
 
 [dependencies]
 alloy-network.workspace = true
-op-alloy-network.workspace = true
-reth-optimism-node.workspace = true
+op-alloy-network = { workspace = true, optional = true }
+reth-optimism-node = { workspace = true, optional = true }
 reth-node-ethereum.workspace = true
 reth-node-types.workspace = true
+
+
+[features]
+default = []
+l2 = ["dep:reth-optimism-node", "dep:op-alloy-network"]

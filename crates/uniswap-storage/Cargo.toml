@@ -43,13 +43,13 @@ dotenv = "0.15"
 op-alloy-network = { version = "0.23.1", default-features = false }
 
 [features]
-default = ["v4", "v3", "l1-angstrom", "l2-angstrom", "revm"]
-full = ["v4", "v3", "l1-angstrom", "l2-angstrom"]
+default = ["v4", "v3", "l1-angstrom", "revm"]
+full = ["v4", "v3", "l1-angstrom", "l2-angstrom", "revm"]
 
 v4 = []
 v3 = []
 l1-angstrom = ["v4"]
-l2-angstrom = ["v4"]
+l2-angstrom = ["v4", "dep:reth-optimism-rpc"]
 
 revm = ["dep:revm-database"]
 local-reth = [
@@ -57,5 +57,4 @@ local-reth = [
     "dep:reth-provider",
     "dep:reth-rpc",
     "dep:reth-rpc-convert",
-    "dep:reth-optimism-rpc",
 ]
