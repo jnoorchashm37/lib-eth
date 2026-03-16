@@ -152,7 +152,7 @@ mod tests {
         let builder = RethNodeClientBuilder::<MainnetExt>::new(MAINNET_DB_PATH, 1000, MAINNET.clone(), None, None);
         let client = builder.build().unwrap();
 
-        let log_stream = client.log_stream_native().await.unwrap();
+        let log_stream = client.log_stream_native(Filter::new()).await.unwrap();
         assert!(stream_timeout(log_stream, 2, 30).await.is_ok());
     }
 
