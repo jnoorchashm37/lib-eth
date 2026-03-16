@@ -98,6 +98,17 @@ impl NodeClientSpec for EthereumNode {
     }
 }
 
+impl RethNodeClient<eth_network_exts::mainnet::MainnetExt> {
+    /// I want to test the log stream functionality WITHOUT using the root
+    /// provider. I want to use the native log stream used from the reth node
+    /// (via direct DB connection)
+    pub async fn log_stream_native(
+        &self,
+        filter: alloy_rpc_types::Filter
+    ) -> eyre::Result<impl futures::Stream<Item = alloy_rpc_types::Log>> {
+    }
+}
+
 #[cfg(all(test, not(feature = "ci")))]
 mod tests {
     use alloy_rpc_types::Filter;
@@ -132,6 +143,16 @@ mod tests {
         let client = builder.build().unwrap();
 
         let log_stream = client.log_stream(Filter::new()).await.unwrap();
+        assert!(stream_timeout(log_stream, 2, 30).await.is_ok());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[serial_test::serial]
+    async fn test_log_stream_native() {
+        let builder = RethNodeClientBuilder::<MainnetExt>::new(MAINNET_DB_PATH, 1000, MAINNET.clone(), None, None);
+        let client = builder.build().unwrap();
+
+        let log_stream = client.log_stream_native().await.unwrap();
         assert!(stream_timeout(log_stream, 2, 30).await.is_ok());
     }
 
