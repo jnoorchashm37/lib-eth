@@ -8,6 +8,7 @@ use reth_node_types::NodeTypes;
 use reth_provider::{
     BlockNumReader, CanonStateSubscriptions, DatabaseProviderFactory, StateProviderFactory, TryIntoHistoricalStateProvider
 };
+use reth_rpc::EthPubSub;
 use reth_rpc_eth_api::{EthApiTypes, FullEthApiServer, RpcNodeCore, helpers::FullEthApi};
 use reth_tasks::TaskSpawner;
 
@@ -62,6 +63,7 @@ where
     debug:               <Ext::RethNode as NodeClientSpec>::Debug,
     tx_pool:             <Ext::RethNode as NodeClientSpec>::TxPool,
     db_provider:         <Ext::RethNode as NodeClientSpec>::DbProvider,
+    pubsub:              EthPubSub<<Ext::RethNode as NodeClientSpec>::Api>,
     chain_spec:          Arc<<Ext::RethNode as NodeTypes>::ChainSpec>,
     ipc_path_or_rpc_url: Option<String>
 }

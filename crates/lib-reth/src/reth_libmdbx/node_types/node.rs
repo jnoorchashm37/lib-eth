@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::VecDeque, pin::Pin, sync::Arc};
 
 use alloy_network::Ethereum;
 use eth_network_exts::EthNetworkExt;
@@ -8,12 +8,12 @@ use reth_network_api::noop::NoopNetwork;
 use reth_node_ethereum::{EthEvmConfig, EthereumNode};
 use reth_node_types::NodeTypesWithDBAdapter;
 use reth_provider::{
-    ProviderFactory,
+    CanonStateSubscriptions, ProviderFactory,
     providers::{BlockchainProvider, RocksDBProvider, StaticFileProvider}
 };
-use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
-use reth_rpc_eth_api::{RpcConverter, node::RpcNodeCoreAdapter};
-use reth_rpc_eth_types::{EthConfig, EthFilterConfig, receipt::EthReceiptConverter};
+use reth_rpc::{DebugApi, EthApi, EthFilter, EthPubSub, TraceApi};
+use reth_rpc_eth_api::{RpcConverter, RpcNodeCore, node::RpcNodeCoreAdapter};
+use reth_rpc_eth_types::{EthConfig, EthFilterConfig, logs_utils, receipt::EthReceiptConverter};
 use reth_tasks::{TaskSpawner, pool::BlockingTaskGuard};
 use reth_transaction_pool::{
     CoinbaseTipOrdering, EthPooledTransaction, EthTransactionValidator, Pool, PoolConfig, TransactionValidationTaskExecutor,
@@ -85,6 +85,8 @@ impl NodeClientSpec for EthereumNode {
         let debug = DebugApi::new(api.clone(), tracing_call_guard, task_executor.clone(), futures::stream::empty());
         let filter = EthFilter::new(api.clone(), EthFilterConfig::default(), Box::new(task_executor.clone()));
 
+        let pubsub = EthPubSub::new(api.clone());
+
         Ok(RethNodeClient {
             api,
             trace,
@@ -92,6 +94,7 @@ impl NodeClientSpec for EthereumNode {
             debug,
             tx_pool,
             db_provider: blockchain_provider,
+            pubsub,
             chain_spec,
             ipc_path_or_rpc_url
         })
@@ -105,7 +108,54 @@ impl RethNodeClient<eth_network_exts::mainnet::MainnetExt> {
     pub async fn log_stream_native(
         &self,
         filter: alloy_rpc_types::Filter
-    ) -> eyre::Result<impl futures::Stream<Item = alloy_rpc_types::Log>> {
+    ) -> eyre::Result<Pin<Box<dyn futures::Stream<Item = alloy_rpc_types::Log> + '_>>> {
+        Ok(Box::pin(self.pubsub.log_stream(filter)))
+        // struct NativeLogStreamState<Rx> {
+        //     canon_state_rx: Rx,
+        //     filter: alloy_rpc_types::Filter,
+        //     buffered_logs: VecDeque<alloy_rpc_types::Log>,
+        // }
+
+        // let state = NativeLogStreamState {
+        //     canon_state_rx:
+        // self.api.provider().subscribe_to_canonical_state(),
+        //     filter,
+        //     buffered_logs: VecDeque::new(),
+        // };
+
+        // Ok(futures::stream::unfold(state, |mut state| async move {
+        //     loop {
+        //         if let Some(log) = state.buffered_logs.pop_front() {
+        //             return Some((log, state));
+        //         }
+
+        //         match state.canon_state_rx.recv().await {
+        //             Ok(notification) => {
+        //                 let logs = notification
+        //                     .block_receipts()
+        //                     .into_iter()
+        //                     .flat_map(|(block_receipts, removed)| {
+        //
+        // logs_utils::matching_block_logs_with_tx_hashes(
+        // &state.filter,
+        // block_receipts.block,
+        // block_receipts.timestamp,
+        // block_receipts                                 .tx_receipts
+        //                                 .iter()
+        //                                 .map(|(tx, receipt)| (*tx, receipt)),
+        //                             removed,
+        //                         )
+        //                     })
+        //                     .collect::<Vec<_>>();
+
+        //                 state.buffered_logs.extend(logs);
+        //             }
+        //             Err(tokio::sync::broadcast::error::RecvError::Lagged(_))
+        // => continue,
+        // Err(tokio::sync::broadcast::error::RecvError::Closed) => return None,
+        //         }
+        //     }
+        // }))
     }
 }
 
