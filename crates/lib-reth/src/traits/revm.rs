@@ -3,7 +3,10 @@ use alloy_network::{Ethereum, Network};
 use alloy_primitives::ChainId;
 use revm::{
     Context, DatabaseRef, ExecuteEvm, Journal, MainBuilder, MainContext,
-    context::{BlockEnv, CfgEnv, Evm, Transaction, TxEnv},
+    context::{
+        BlockEnv, CfgEnv, Evm, Transaction, TxEnv,
+        result::{EVMError, ExecutionResult, HaltReason, InvalidTransaction}
+    },
     handler::{EthFrame, EthPrecompiles, instructions::EthInstructions},
     interpreter::interpreter::EthInterpreter,
     state::EvmState
@@ -33,7 +36,7 @@ type MainnetRevmEvm<DB, TX, CFG, CHAIN, INSP> = Evm<
     // type Block = <CTX as ContextTr>::Block;
     // type State = EvmState;
     type Error = OpError<CTX>;
-    type ExecutionResult = ExecutionResult<OpHaltReason>;
+    // type ExecutionResult = ExecutionResult<OpHaltReason>;
 
 */
 
@@ -41,7 +44,17 @@ pub trait RevmNetworkSpec: Network {
     type TX: Transaction;
     type CFG;
     type CHAIN;
-    type EVM<DB: DatabaseRef, INSP>: ExecuteEvm<Tx = Self::TX, State = EvmState, Block = BlockEnv>;
+
+    type EvmHaltReason;
+    type EvmError<DB: DatabaseRef>;
+
+    type EVM<DB: DatabaseRef, INSP>: ExecuteEvm<
+            Tx = Self::TX,
+            State = EvmState,
+            Block = BlockEnv,
+            ExecutionResult = ExecutionResult<Self::EvmHaltReason>,
+            Error = Self::EvmError<DB>
+        >;
 
     fn convert_build_tx(
         tx: TxEnv,
@@ -66,6 +79,8 @@ impl RevmNetworkSpec for Ethereum {
     type CFG = CfgEnv;
     type CHAIN = ();
     type EVM<DB: DatabaseRef, INSP> = MainnetRevmEvm<DB, Self::TX, Self::CFG, Self::CHAIN, INSP>;
+    type EvmError<DB: DatabaseRef> = EVMError<DB::Error, InvalidTransaction>;
+    type EvmHaltReason = HaltReason;
     type TX = TxEnv;
 
     fn convert_build_tx(
@@ -100,7 +115,10 @@ impl RevmNetworkSpec for Ethereum {
 #[cfg(feature = "op-revm")]
 mod op_impl {
     use op_alloy_network::Optimism;
-    use op_revm::{DefaultOp, L1BlockInfo, OpBuilder, OpEvm, OpSpecId, OpTransaction, precompiles::OpPrecompiles};
+    use op_revm::{
+        DefaultOp, L1BlockInfo, OpBuilder, OpEvm, OpHaltReason, OpSpecId, OpTransaction, OpTransactionError,
+        precompiles::OpPrecompiles
+    };
 
     use super::*;
 
@@ -115,6 +133,8 @@ mod op_impl {
         type CFG = CfgEnv<OpSpecId>;
         type CHAIN = L1BlockInfo;
         type EVM<DB: DatabaseRef, INSP> = OptimismRevmEvm<DB, Self::TX, Self::CFG, Self::CHAIN, INSP>;
+        type EvmError<DB: DatabaseRef> = EVMError<DB::Error, OpTransactionError>;
+        type EvmHaltReason = OpHaltReason;
         type TX = OpTransaction<TxEnv>;
 
         fn convert_build_tx(
@@ -136,7 +156,7 @@ mod op_impl {
         }
 
         fn build_evm<DB: DatabaseRef>(db: CacheDB<DB>, chain_id: u64) -> Self::EVM<DB, ()> {
-            Self::build_context(db, chain_id).build_op().transact(tx)
+            Self::build_context(db, chain_id).build_op()
         }
 
         fn build_evm_with_inspector<DB: DatabaseRef, INSP>(
