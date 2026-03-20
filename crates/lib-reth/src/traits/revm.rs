@@ -46,7 +46,7 @@ pub trait RevmNetworkSpec: Network {
     type CHAIN;
 
     type EvmHaltReason;
-    type EvmError<DB: DatabaseRef>;
+    type EvmError<DB: DatabaseRef>: Send + Sync + std::error::Error;
 
     type EVM<DB: DatabaseRef, INSP>: ExecuteEvm<
             Tx = Self::TX,
