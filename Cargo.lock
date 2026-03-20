@@ -4157,6 +4157,7 @@ dependencies = [
  "futures",
  "op-alloy-consensus",
  "op-alloy-network",
+ "op-revm",
  "reth-chainspec",
  "reth-db",
  "reth-network-api",

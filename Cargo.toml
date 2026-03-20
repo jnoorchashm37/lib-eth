@@ -62,6 +62,13 @@ revm = { version = "34.0.0", features = [
     "optional_block_gas_limit",
     "c-kzg",
 ], default-features = false }
+op-revm = { version = "15.0.0", features = [
+    "std",
+    "secp256k1",
+    "optional_balance_check",
+    "optional_block_gas_limit",
+    "c-kzg",
+], default-features = false }
 
 # async
 tokio = "1"

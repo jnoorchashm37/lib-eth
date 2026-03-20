@@ -73,6 +73,7 @@ revm.workspace = true
 revm-database = { workspace = true, default-features = false, features = [
     "alloydb",
 ] }
+op-revm = { workspace = true, optional = true }
 
 # async
 tokio = { workspace = true, features = ["full"] }
@@ -89,7 +90,7 @@ serial_test.workspace = true
 
 
 [features]
-default = ["full"]
+default = ["full", "op-reth-libmdbx"]
 full = ["ipc", "ws", "uniswap-storage", "revm", "reth-libmdbx"]
 
 
@@ -117,6 +118,7 @@ op-reth-libmdbx = [
     "dep:op-alloy-consensus",
     "uniswap-storage/l2-angstrom",
     "eth-network-exts/l2",
+    "op-revm",
 ]
 
 reth-libmdbx = [

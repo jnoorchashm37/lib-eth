@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-#[cfg(feature = "revm")]
-use alloy_eips::BlockId;
 use alloy_provider::{IpcConnect, RootProvider, WsConnect, builder};
 use eth_network_exts::EthNetworkExt;
 use reth_node_types::NodeTypes;
@@ -129,18 +127,26 @@ where
 }
 
 #[cfg(feature = "revm")]
-impl<Ext: EthNetworkExt> crate::traits::EthRevm for RethNodeClient<Ext>
-where
-    Ext::RethNode: NodeClientSpec
-{
-    type InnerDb = crate::traits::reth_revm_utils::RethLibmdbxDatabaseRef;
+mod revm_impl {
 
-    fn make_inner_db(&self, block: BlockId) -> eyre::Result<Self::InnerDb> {
-        use reth_provider::StateProviderFactory;
+    use super::*;
+    use crate::traits::{EthRevm, RevmNetworkSpec};
 
-        let state_provider = self.eth_db_provider().state_by_block_id(block)?;
+    impl<Ext, N> EthRevm<N> for RethNodeClient<Ext>
+    where
+        N: RevmNetworkSpec,
+        Ext: EthNetworkExt<AlloyNetwork = N>,
+        Ext::RethNode: NodeClientSpec
+    {
+        type InnerDb = crate::traits::reth_revm_utils::RethLibmdbxDatabaseRef;
 
-        let this = reth_revm::database::StateProviderDatabase::new(state_provider);
-        Ok(crate::traits::reth_revm_utils::RethLibmdbxDatabaseRef::new(this))
+        fn make_inner_db(&self, block: alloy_eips::BlockId) -> eyre::Result<Self::InnerDb> {
+            use reth_provider::StateProviderFactory;
+
+            let state_provider = self.eth_db_provider().state_by_block_id(block)?;
+
+            let this = reth_revm::database::StateProviderDatabase::new(state_provider);
+            Ok(crate::traits::reth_revm_utils::RethLibmdbxDatabaseRef::new(this))
+        }
     }
 }
