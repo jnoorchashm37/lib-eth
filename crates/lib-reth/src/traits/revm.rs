@@ -22,24 +22,6 @@ type MainnetRevmEvm<DB, TX, CFG, CHAIN, INSP> = Evm<
     EthFrame
 >;
 
-/*
-
-    // type ExecutionResult = ExecutionResult<HaltReason>;
-    // type State = EvmState;
-    type Error = EVMError<<CTX::Db as Database>::Error, InvalidTransaction>;
-    // type Tx = <CTX as ContextTr>::Tx;
-    // type Block = <CTX as ContextTr>::Block;
-
-
-
-    // type Tx = <CTX as ContextTr>::Tx;
-    // type Block = <CTX as ContextTr>::Block;
-    // type State = EvmState;
-    type Error = OpError<CTX>;
-    // type ExecutionResult = ExecutionResult<OpHaltReason>;
-
-*/
-
 pub trait RevmNetworkSpec: Network {
     type TX: Transaction;
     type CFG;
