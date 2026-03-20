@@ -53,7 +53,7 @@ pub trait RevmNetworkSpec: Network {
             State = EvmState,
             Block = BlockEnv,
             ExecutionResult = ExecutionResult<Self::EvmHaltReason>,
-            Error = Self::EvmError<DB>
+            Error = Self::EvmError<CacheDB<DB>>
         >;
 
     fn convert_build_tx(
