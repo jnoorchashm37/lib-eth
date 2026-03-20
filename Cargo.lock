@@ -4151,6 +4151,7 @@ dependencies = [
  "alloy-rpc-client",
  "alloy-rpc-types",
  "async-trait",
+ "auto_impl",
  "eth-network-exts",
  "exe-runners",
  "eyre",

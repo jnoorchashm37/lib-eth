@@ -83,6 +83,7 @@ async-trait.workspace = true
 # misc
 eyre.workspace = true
 exe-runners = { workspace = true, features = ["reth-tasks"] }
+auto_impl.workspace = true
 
 
 [dev-dependencies]

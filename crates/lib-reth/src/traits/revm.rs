@@ -88,7 +88,7 @@ mod op_impl {
     }
 }
 
-/// revm utils
+#[auto_impl::auto_impl(&, Box, Arc)]
 pub trait EthRevm<N: RevmNetworkSpec> {
     type InnerDb: DatabaseRef;
     type Params: EthRevmInput;
