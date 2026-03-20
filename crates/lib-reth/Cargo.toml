@@ -99,7 +99,12 @@ ws = []
 rayon = ["exe-runners/rayon"]
 
 
-revm = ["reth-libmdbx", "dep:reth-rpc-eth-api", "dep:reth-revm"]
+revm = [
+    "reth-libmdbx",
+    "dep:reth-rpc-eth-api",
+    "dep:reth-revm",
+    "dep:alloy-eips",
+]
 
 op-reth-libmdbx = [
     "reth-libmdbx",
