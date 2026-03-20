@@ -138,7 +138,7 @@ mod revm_impl {
     impl<Ext, N> EthRevm<N> for RethNodeClient<Ext>
     where
         N: RevmNetworkSpec,
-        Ext: EthNetworkExt<AlloyNetwork = N>,
+        Ext: EthNetworkExt,
         Ext::RethNode: NodeClientSpec
     {
         type InnerDb = RethLibmdbxDatabaseRef;
