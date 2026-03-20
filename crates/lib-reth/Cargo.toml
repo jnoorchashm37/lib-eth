@@ -90,38 +90,23 @@ serial_test.workspace = true
 
 
 [features]
-default = ["full", "op-reth-libmdbx"]
-full = ["ipc", "ws", "uniswap-storage", "revm", "reth-libmdbx"]
+default = ["full"]
+full = ["mainnet-full", "op-full", "ipc", "ws", "uniswap-storage"]
 
 
 ipc = []
 ws = []
 
-rayon = ["exe-runners/rayon"]
+
+mainnet-full = ["revm", "reth-db"]
+op-full = ["op-revm", "op-reth-db"]
 
 
-revm = [
-    "reth-libmdbx",
-    "dep:reth-rpc-eth-api",
-    "dep:reth-revm",
-    "dep:alloy-eips",
-]
+revm = ["dep:alloy-eips", "reth-revm"]
+op-revm = ["revm", "dep:op-revm", "dep:op-alloy-network"]
 
-op-reth-libmdbx = [
-    "reth-libmdbx",
-    "dep:reth-optimism-chainspec",
-    "dep:reth-optimism-primitives",
-    "dep:reth-optimism-node",
-    "dep:reth-optimism-evm",
-    "dep:reth-optimism-rpc",
-    "dep:op-alloy-network",
-    "dep:op-alloy-consensus",
-    "uniswap-storage/l2-angstrom",
-    "eth-network-exts/l2",
-    "op-revm",
-]
 
-reth-libmdbx = [
+reth-db = [
     "dep:reth-provider",
     "dep:reth-rpc",
     "dep:reth-transaction-pool",
@@ -136,7 +121,21 @@ reth-libmdbx = [
     "dep:reth-storage-api",
     "dep:reth-rpc-eth-api",
 ]
+op-reth-db = [
+    "reth-db",
+    "dep:reth-optimism-chainspec",
+    "dep:reth-optimism-primitives",
+    "dep:reth-optimism-node",
+    "dep:reth-optimism-evm",
+    "dep:reth-optimism-rpc",
+    "dep:op-alloy-network",
+    "dep:op-alloy-consensus",
+    "uniswap-storage/l2-angstrom",
+    "eth-network-exts/l2",
+]
+
 
 uniswap-storage = ["dep:uniswap-storage", "dep:alloy-eips"]
+rayon = ["exe-runners/rayon"]
 
 ci = []

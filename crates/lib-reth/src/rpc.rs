@@ -103,25 +103,21 @@ where
 #[cfg(feature = "revm")]
 mod revm_impl {
 
-    use alloy_eips::BlockId;
     use revm_database::{AlloyDB, WrapDatabaseAsync};
 
     use super::*;
-    use crate::traits::{AsyncEthRevm, RevmNetworkSpec};
+    use crate::traits::{AsyncEthRevmParams, EthRevm, RevmNetworkSpec};
 
-    impl<P, N> AsyncEthRevm<N> for EthRpcClient<P, N>
+    impl<P, N> EthRevm<N> for EthRpcClient<P, N>
     where
         P: Provider<N> + Clone,
         N: Network + RevmNetworkSpec
     {
-        type InnerDb = AlloyDB<N, P>;
+        type InnerDb = WrapDatabaseAsync<AlloyDB<N, P>>;
+        type Params = AsyncEthRevmParams;
 
-        fn make_inner_db(
-            &self,
-            block_id: BlockId,
-            handle: tokio::runtime::Handle
-        ) -> eyre::Result<WrapDatabaseAsync<Self::InnerDb>> {
-            Ok(WrapDatabaseAsync::with_handle(AlloyDB::new(self.provider.clone(), block_id), handle))
+        fn make_inner_db(&self, params: &AsyncEthRevmParams) -> eyre::Result<Self::InnerDb> {
+            Ok(WrapDatabaseAsync::with_handle(AlloyDB::new(self.provider.clone(), params.block_id), params.handle.clone()))
         }
     }
 }

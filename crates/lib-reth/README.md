@@ -11,13 +11,13 @@ This crate provides a comprehensive library for connecting to Ethereum endpoints
 - HTTP (default)
 - IPC (feature = `ipc`)
 - WebSocket (feature = `ws`)
-- Direct database access via libmdbx (feature = `reth-libmdbx`)
+- Direct database access via libmdbx (feature = `reth-db`)
 
 ## Features
 
 - `full` - All connection types and integrations
 - `revm` - REVM execution support
-- `op-reth-libmdbx` - Optimism node support
+- `op-reth-db` - Optimism node support
 - `rayon` - Parallel execution support
 
 ## Supported Functionality
