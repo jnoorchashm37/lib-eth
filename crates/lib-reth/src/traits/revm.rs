@@ -1,10 +1,9 @@
 use alloy_eips::BlockId;
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::ChainId;
-pub use reth_evm::TransactionEnv;
 use revm::{
     Context, DatabaseRef, ExecuteEvm, Journal, MainBuilder, MainContext,
-    context::{BlockEnv, CfgEnv, Evm, TxEnv},
+    context::{BlockEnv, CfgEnv, Evm, Transaction, TxEnv},
     handler::{EthFrame, EthPrecompiles, instructions::EthInstructions},
     interpreter::interpreter::EthInterpreter
 };
@@ -20,10 +19,15 @@ type MainnetRevmEvm<DB, TX, CFG, CHAIN, INSP> = Evm<
 >;
 
 pub trait RevmNetworkSpec: Network {
-    type TX: TransactionEnv + Default;
+    type TX: Transaction;
     type CFG;
     type CHAIN;
     type EVM<DB: DatabaseRef, INSP>: ExecuteEvm;
+
+    fn convert_build_tx(
+        tx: TxEnv,
+        #[cfg(feature = "op-revm")] op_mods: impl FnMut(&mut op_revm::OpTransaction<TxEnv>)
+    ) -> Self::TX;
 
     fn build_context<DB: DatabaseRef>(
         db: CacheDB<DB>,
@@ -44,6 +48,13 @@ impl RevmNetworkSpec for Ethereum {
     type CHAIN = ();
     type EVM<DB: DatabaseRef, INSP> = MainnetRevmEvm<DB, Self::TX, Self::CFG, Self::CHAIN, INSP>;
     type TX = TxEnv;
+
+    fn convert_build_tx(
+        tx: TxEnv,
+        #[cfg(feature = "op-revm")] _: impl FnMut(&mut op_revm::OpTransaction<TxEnv>)
+    ) -> Self::TX {
+        tx
+    }
 
     fn build_context<DB: DatabaseRef>(
         db: CacheDB<DB>,
@@ -86,6 +97,15 @@ mod op_impl {
         type CHAIN = L1BlockInfo;
         type EVM<DB: DatabaseRef, INSP> = OptimismRevmEvm<DB, Self::TX, Self::CFG, Self::CHAIN, INSP>;
         type TX = OpTransaction<TxEnv>;
+
+        fn convert_build_tx(
+            tx: TxEnv,
+            #[cfg(feature = "op-revm")] mut op_mods: impl FnMut(&mut op_revm::OpTransaction<TxEnv>)
+        ) -> Self::TX {
+            let mut tx = OpTransaction::new(tx);
+            op_mods(&mut tx);
+            tx
+        }
 
         fn build_context<DB: DatabaseRef>(
             db: CacheDB<DB>,
