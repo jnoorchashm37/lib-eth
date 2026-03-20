@@ -4161,6 +4161,7 @@ dependencies = [
  "op-revm",
  "reth-chainspec",
  "reth-db",
+ "reth-evm",
  "reth-network-api",
  "reth-node-ethereum",
  "reth-node-types",

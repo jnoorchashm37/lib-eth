@@ -1,6 +1,7 @@
 use alloy_eips::BlockId;
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::ChainId;
+pub use reth_evm::TransactionEnv;
 use revm::{
     Context, DatabaseRef, ExecuteEvm, Journal, MainBuilder, MainContext,
     context::{BlockEnv, CfgEnv, Evm, TxEnv},
@@ -8,7 +9,6 @@ use revm::{
     interpreter::interpreter::EthInterpreter
 };
 use revm_database::CacheDB;
-
 type NetworkRevmContext<DB, TX, CFG, CHAIN> = Context<BlockEnv, TX, CFG, CacheDB<DB>, Journal<CacheDB<DB>>, CHAIN>;
 
 type MainnetRevmEvm<DB, TX, CFG, CHAIN, INSP> = Evm<
@@ -20,7 +20,7 @@ type MainnetRevmEvm<DB, TX, CFG, CHAIN, INSP> = Evm<
 >;
 
 pub trait RevmNetworkSpec: Network {
-    type TX;
+    type TX: TransactionEnv + Default;
     type CFG;
     type CHAIN;
     type EVM<DB: DatabaseRef, INSP>: ExecuteEvm;
