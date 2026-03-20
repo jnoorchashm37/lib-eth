@@ -5,7 +5,8 @@ use revm::{
     Context, DatabaseRef, ExecuteEvm, Journal, MainBuilder, MainContext,
     context::{BlockEnv, CfgEnv, Evm, Transaction, TxEnv},
     handler::{EthFrame, EthPrecompiles, instructions::EthInstructions},
-    interpreter::interpreter::EthInterpreter
+    interpreter::interpreter::EthInterpreter,
+    state::EvmState
 };
 use revm_database::CacheDB;
 type NetworkRevmContext<DB, TX, CFG, CHAIN> = Context<BlockEnv, TX, CFG, CacheDB<DB>, Journal<CacheDB<DB>>, CHAIN>;
@@ -18,11 +19,29 @@ type MainnetRevmEvm<DB, TX, CFG, CHAIN, INSP> = Evm<
     EthFrame
 >;
 
+/*
+
+    // type ExecutionResult = ExecutionResult<HaltReason>;
+    // type State = EvmState;
+    type Error = EVMError<<CTX::Db as Database>::Error, InvalidTransaction>;
+    // type Tx = <CTX as ContextTr>::Tx;
+    // type Block = <CTX as ContextTr>::Block;
+
+
+
+    // type Tx = <CTX as ContextTr>::Tx;
+    // type Block = <CTX as ContextTr>::Block;
+    // type State = EvmState;
+    type Error = OpError<CTX>;
+    type ExecutionResult = ExecutionResult<OpHaltReason>;
+
+*/
+
 pub trait RevmNetworkSpec: Network {
     type TX: Transaction;
     type CFG;
     type CHAIN;
-    type EVM<DB: DatabaseRef, INSP>: ExecuteEvm;
+    type EVM<DB: DatabaseRef, INSP>: ExecuteEvm<Tx = Self::TX, State = EvmState, Block = BlockEnv>;
 
     fn convert_build_tx(
         tx: TxEnv,
@@ -117,7 +136,7 @@ mod op_impl {
         }
 
         fn build_evm<DB: DatabaseRef>(db: CacheDB<DB>, chain_id: u64) -> Self::EVM<DB, ()> {
-            Self::build_context(db, chain_id).build_op()
+            Self::build_context(db, chain_id).build_op().transact(tx)
         }
 
         fn build_evm_with_inspector<DB: DatabaseRef, INSP>(
