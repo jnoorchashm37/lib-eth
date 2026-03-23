@@ -3,7 +3,7 @@ use alloy_primitives::ChainId;
 use revm::{
     Context, DatabaseRef, Journal, MainBuilder, MainContext,
     context::{BlockEnv, CfgEnv, Evm, TxEnv},
-    handler::{EthFrame, EthPrecompiles, instructions::EthInstructions},
+    handler::{EthFrame, EthPrecompiles, EvmTr, instructions::EthInstructions},
     interpreter::interpreter::EthInterpreter
 };
 use revm_database::CacheDB;
@@ -17,11 +17,22 @@ type MainnetRevmEvm<DB> = Evm<
     EthFrame
 >;
 
-pub fn empty_mainnet_revm<DB: DatabaseRef>(db: CacheDB<DB>, chain_id: ChainId) -> MainnetRevmEvm<DB> {
-    Context::mainnet()
+pub fn empty_mainnet_revm<DB: DatabaseRef>(
+    db: CacheDB<DB>,
+    chain_id: ChainId,
+    disable_nonce_check: bool
+) -> MainnetRevmEvm<DB> {
+    let mut evm = Context::mainnet()
         .modify_cfg_chained(|cfg| cfg.chain_id = chain_id)
         .with_db(db)
-        .build_mainnet()
+        .build_mainnet();
+
+    if disable_nonce_check {
+        evm.ctx_mut()
+            .modify_cfg(|cfg| cfg.disable_nonce_check = true);
+    }
+
+    evm
 }
 
 #[cfg(feature = "op-revm")]
