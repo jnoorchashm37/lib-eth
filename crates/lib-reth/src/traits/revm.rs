@@ -1,69 +1,135 @@
 use alloy_eips::BlockId;
+use alloy_primitives::ChainId;
 use revm::{
-    Context, DatabaseRef, MainBuilder, MainContext,
+    Context, DatabaseRef, Journal, MainBuilder, MainContext,
     context::{BlockEnv, CfgEnv, Evm, TxEnv},
-    handler::{EthFrame, EthPrecompiles, instructions::EthInstructions},
+    handler::{EthFrame, EthPrecompiles, EvmTr, instructions::EthInstructions},
     interpreter::interpreter::EthInterpreter
 };
-use revm_database::{CacheDB, WrapDatabaseAsync, async_db::DatabaseAsyncRef};
+use revm_database::CacheDB;
+type NetworkRevmContext<DB, TX, CFG, CHAIN> = Context<BlockEnv, TX, CFG, CacheDB<DB>, Journal<CacheDB<DB>>, CHAIN>;
 
-pub type RevmEvm<DB> = Evm<
-    Context<BlockEnv, TxEnv, CfgEnv, DB>,
+type MainnetRevmEvm<DB> = Evm<
+    NetworkRevmContext<DB, TxEnv, CfgEnv, ()>,
     (),
-    EthInstructions<EthInterpreter, Context<BlockEnv, TxEnv, CfgEnv, DB>>,
+    EthInstructions<EthInterpreter, NetworkRevmContext<DB, TxEnv, CfgEnv, ()>>,
     EthPrecompiles,
     EthFrame
 >;
 
-/// revm utils
-pub trait EthRevm {
-    type InnerDb: DatabaseRef;
+pub fn empty_mainnet_revm<DB: DatabaseRef>(
+    db: CacheDB<DB>,
+    chain_id: ChainId,
+    disable_nonce_check: bool
+) -> MainnetRevmEvm<DB> {
+    let mut evm = Context::mainnet()
+        .modify_cfg_chained(|cfg| cfg.chain_id = chain_id)
+        .with_db(db)
+        .build_mainnet();
 
-    /// `makes the inner database fetcher`
-    fn make_inner_db(&self, block_id: BlockId) -> eyre::Result<Self::InnerDb>;
-
-    /// `makes a new cache db`
-    fn make_cache_db(&self, block_id: BlockId) -> eyre::Result<CacheDB<Self::InnerDb>> {
-        Ok(CacheDB::new(self.make_inner_db(block_id)?))
+    if disable_nonce_check {
+        evm.ctx_mut()
+            .modify_cfg(|cfg| cfg.disable_nonce_check = true);
     }
 
-    /// `makes a new cache db`
-    fn make_empty_evm(&self, block_id: BlockId) -> eyre::Result<RevmEvm<CacheDB<Self::InnerDb>>> {
-        let cache = self.make_cache_db(block_id)?;
-        let evm = Context::mainnet().with_db(cache).build_mainnet();
-        Ok(evm)
+    evm
+}
+
+#[cfg(feature = "op-revm")]
+pub use op_impl::empty_op_mainnet_revm;
+#[cfg(feature = "op-revm")]
+pub use op_revm::OpTransaction;
+
+#[cfg(feature = "op-revm")]
+mod op_impl {
+    use op_revm::{DefaultOp, L1BlockInfo, OpBuilder, OpEvm, OpSpecId, OpTransaction, precompiles::OpPrecompiles};
+    use revm::handler::EvmTr;
+
+    use super::*;
+
+    type OptimismRevmEvm<DB> = OpEvm<
+        NetworkRevmContext<DB, OpTransaction<TxEnv>, CfgEnv<OpSpecId>, L1BlockInfo>,
+        (),
+        EthInstructions<EthInterpreter, NetworkRevmContext<DB, OpTransaction<TxEnv>, CfgEnv<OpSpecId>, L1BlockInfo>>,
+        OpPrecompiles
+    >;
+
+    pub fn empty_op_mainnet_revm<DB: DatabaseRef>(
+        db: CacheDB<DB>,
+        chain_id: ChainId,
+        disable_nonce_check: bool
+    ) -> OptimismRevmEvm<DB> {
+        let mut evm = Context::op()
+            .modify_cfg_chained(|cfg| cfg.chain_id = chain_id)
+            .with_db(db)
+            .build_op();
+
+        if disable_nonce_check {
+            evm.ctx_mut()
+                .modify_cfg(|cfg| cfg.disable_nonce_check = true);
+        }
+
+        evm
     }
 }
 
-/// async revm utils
-pub trait AsyncEthRevm {
-    type InnerDb: DatabaseAsyncRef;
+#[auto_impl::auto_impl(&, Box, Arc)]
+pub trait EthRevm {
+    type InnerDb: DatabaseRef;
+    type Params: EthRevmInput;
 
     /// `makes the inner database fetcher`
-    fn make_inner_db(
-        &self,
-        block_number: u64,
-        handle: tokio::runtime::Handle
-    ) -> eyre::Result<WrapDatabaseAsync<Self::InnerDb>>;
+    fn make_inner_db(&self, params: &Self::Params) -> eyre::Result<Self::InnerDb>;
 
     /// `makes a new cache db`
-    fn make_cache_db(
-        &self,
-        block_number: u64,
-        handle: tokio::runtime::Handle
-    ) -> eyre::Result<CacheDB<WrapDatabaseAsync<Self::InnerDb>>> {
-        Ok(CacheDB::new(self.make_inner_db(block_number, handle)?))
+    fn make_cache_db(&self, params: &Self::Params) -> eyre::Result<CacheDB<Self::InnerDb>> {
+        Ok(CacheDB::new(self.make_inner_db(params)?))
+    }
+}
+
+pub trait EthRevmInput: Send + Sync {
+    fn block_id(&self) -> BlockId;
+
+    fn chain_id(&self) -> ChainId;
+
+    fn handle(&self) -> Option<tokio::runtime::Handle>;
+}
+
+pub struct EthRevmParams {
+    pub block_id: BlockId,
+    pub chain_id: ChainId
+}
+
+impl EthRevmInput for EthRevmParams {
+    fn block_id(&self) -> BlockId {
+        self.block_id
     }
 
-    /// `makes a new evm with a cache db`
-    fn make_evm(
-        &self,
-        block_number: u64,
-        handle: tokio::runtime::Handle
-    ) -> eyre::Result<RevmEvm<CacheDB<WrapDatabaseAsync<Self::InnerDb>>>> {
-        let cache = self.make_cache_db(block_number, handle)?;
-        let evm = Context::mainnet().with_db(cache).build_mainnet();
+    fn chain_id(&self) -> ChainId {
+        self.chain_id
+    }
 
-        Ok(evm)
+    fn handle(&self) -> Option<tokio::runtime::Handle> {
+        None
+    }
+}
+
+pub struct AsyncEthRevmParams {
+    pub block_id: BlockId,
+    pub chain_id: ChainId,
+    pub handle:   tokio::runtime::Handle
+}
+
+impl EthRevmInput for AsyncEthRevmParams {
+    fn block_id(&self) -> BlockId {
+        self.block_id
+    }
+
+    fn chain_id(&self) -> ChainId {
+        self.chain_id
+    }
+
+    fn handle(&self) -> Option<tokio::runtime::Handle> {
+        Some(self.handle.clone())
     }
 }

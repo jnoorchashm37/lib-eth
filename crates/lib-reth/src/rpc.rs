@@ -14,8 +14,6 @@ use alloy_rpc_client::WsConnect;
 use alloy_rpc_types::Filter;
 #[cfg(any(feature = "ipc", feature = "ws"))]
 use futures::Stream;
-#[cfg(feature = "revm")]
-use revm_database::{AlloyDB, WrapDatabaseAsync};
 
 #[cfg(any(feature = "ipc", feature = "ws"))]
 use crate::traits::EthStream;
@@ -103,18 +101,35 @@ where
 }
 
 #[cfg(feature = "revm")]
-impl<P, N> crate::traits::AsyncEthRevm for EthRpcClient<P, N>
-where
-    P: Provider<N> + Clone,
-    N: Network
-{
-    type InnerDb = AlloyDB<N, P>;
+mod revm_impl {
 
-    fn make_inner_db(
-        &self,
-        block_number: u64,
-        handle: tokio::runtime::Handle
-    ) -> eyre::Result<WrapDatabaseAsync<Self::InnerDb>> {
-        Ok(WrapDatabaseAsync::with_handle(AlloyDB::new(self.provider.clone(), block_number.into()), handle))
+    use revm_database::{AlloyDB, WrapDatabaseAsync};
+
+    use super::*;
+    use crate::traits::{AsyncEthRevmParams, EthRevm};
+
+    impl<P, N> EthRevm for EthRpcClient<P, N>
+    where
+        P: Provider<N> + Clone,
+        N: Network
+    {
+        type InnerDb = WrapDatabaseAsync<AlloyDB<N, P>>;
+        type Params = AsyncEthRevmParams;
+
+        fn make_inner_db(&self, params: &AsyncEthRevmParams) -> eyre::Result<Self::InnerDb> {
+            Ok(WrapDatabaseAsync::with_handle(AlloyDB::new(self.provider.clone(), params.block_id), params.handle.clone()))
+        }
+    }
+
+    impl<N> EthRevm for RootProvider<N>
+    where
+        N: Network
+    {
+        type InnerDb = WrapDatabaseAsync<AlloyDB<N, RootProvider<N>>>;
+        type Params = AsyncEthRevmParams;
+
+        fn make_inner_db(&self, params: &AsyncEthRevmParams) -> eyre::Result<Self::InnerDb> {
+            Ok(WrapDatabaseAsync::with_handle(AlloyDB::new(self.clone(), params.block_id), params.handle.clone()))
+        }
     }
 }

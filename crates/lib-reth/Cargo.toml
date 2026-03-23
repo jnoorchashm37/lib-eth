@@ -43,6 +43,7 @@ reth-revm = { workspace = true, optional = true }
 reth-rpc-eth-api = { workspace = true, optional = true }
 reth-storage-api = { workspace = true, optional = true }
 reth-node-types = { workspace = true, optional = true }
+reth-evm = { workspace = true, optional = true }
 uniswap-storage = { workspace = true, optional = true }
 eth-network-exts.workspace = true
 
@@ -73,6 +74,7 @@ revm.workspace = true
 revm-database = { workspace = true, default-features = false, features = [
     "alloydb",
 ] }
+op-revm = { workspace = true, optional = true }
 
 # async
 tokio = { workspace = true, features = ["full"] }
@@ -82,6 +84,7 @@ async-trait.workspace = true
 # misc
 eyre.workspace = true
 exe-runners = { workspace = true, features = ["reth-tasks"] }
+auto_impl.workspace = true
 
 
 [dev-dependencies]
@@ -90,36 +93,22 @@ serial_test.workspace = true
 
 [features]
 default = ["full"]
-full = ["ipc", "ws", "uniswap-storage", "revm", "reth-libmdbx"]
+full = ["mainnet-full", "op-full", "ipc", "ws", "uniswap-storage"]
 
 
 ipc = []
 ws = []
 
-rayon = ["exe-runners/rayon"]
+
+mainnet-full = ["revm", "reth-db"]
+op-full = ["op-revm", "op-reth-db"]
 
 
-revm = [
-    "reth-libmdbx",
-    "dep:reth-rpc-eth-api",
-    "dep:reth-revm",
-    "dep:alloy-eips",
-]
+revm = ["dep:alloy-eips", "dep:reth-revm", "dep:reth-evm"]
+op-revm = ["revm", "dep:op-revm", "dep:op-alloy-network"]
 
-op-reth-libmdbx = [
-    "reth-libmdbx",
-    "dep:reth-optimism-chainspec",
-    "dep:reth-optimism-primitives",
-    "dep:reth-optimism-node",
-    "dep:reth-optimism-evm",
-    "dep:reth-optimism-rpc",
-    "dep:op-alloy-network",
-    "dep:op-alloy-consensus",
-    "uniswap-storage/l2-angstrom",
-    "eth-network-exts/l2",
-]
 
-reth-libmdbx = [
+reth-db = [
     "dep:reth-provider",
     "dep:reth-rpc",
     "dep:reth-transaction-pool",
@@ -134,7 +123,21 @@ reth-libmdbx = [
     "dep:reth-storage-api",
     "dep:reth-rpc-eth-api",
 ]
+op-reth-db = [
+    "reth-db",
+    "dep:reth-optimism-chainspec",
+    "dep:reth-optimism-primitives",
+    "dep:reth-optimism-node",
+    "dep:reth-optimism-evm",
+    "dep:reth-optimism-rpc",
+    "dep:op-alloy-network",
+    "dep:op-alloy-consensus",
+    "uniswap-storage/l2-angstrom",
+    "eth-network-exts/l2",
+]
+
 
 uniswap-storage = ["dep:uniswap-storage", "dep:alloy-eips"]
+rayon = ["exe-runners/rayon"]
 
 ci = []

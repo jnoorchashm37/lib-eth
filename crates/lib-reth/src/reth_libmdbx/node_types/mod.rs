@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-#[cfg(feature = "revm")]
-use alloy_eips::BlockId;
 use alloy_provider::{IpcConnect, RootProvider, WsConnect, builder};
 use eth_network_exts::EthNetworkExt;
 use reth_node_types::NodeTypes;
@@ -14,7 +12,7 @@ use reth_tasks::TaskSpawner;
 use crate::{reth_libmdbx::DbConfig, traits::EthStream};
 
 pub mod node;
-#[cfg(feature = "op-reth-libmdbx")]
+#[cfg(feature = "op-reth-db")]
 pub mod op_node;
 
 pub(crate) fn provider_runtime() -> eyre::Result<reth_tasks::Runtime> {
@@ -129,18 +127,27 @@ where
 }
 
 #[cfg(feature = "revm")]
-impl<Ext: EthNetworkExt> crate::traits::EthRevm for RethNodeClient<Ext>
-where
-    Ext::RethNode: NodeClientSpec
-{
-    type InnerDb = crate::traits::reth_revm_utils::RethLibmdbxDatabaseRef;
+mod revm_impl {
 
-    fn make_inner_db(&self, block: BlockId) -> eyre::Result<Self::InnerDb> {
-        use reth_provider::StateProviderFactory;
+    use reth_provider::StateProviderFactory;
+    use reth_revm::database::StateProviderDatabase;
 
-        let state_provider = self.eth_db_provider().state_by_block_id(block)?;
+    use super::*;
+    use crate::traits::{EthRevm, EthRevmParams, reth_revm_utils::RethLibmdbxDatabaseRef};
 
-        let this = reth_revm::database::StateProviderDatabase::new(state_provider);
-        Ok(crate::traits::reth_revm_utils::RethLibmdbxDatabaseRef::new(this))
+    impl<Ext> EthRevm for RethNodeClient<Ext>
+    where
+        Ext: EthNetworkExt,
+        Ext::RethNode: NodeClientSpec
+    {
+        type InnerDb = RethLibmdbxDatabaseRef;
+        type Params = EthRevmParams;
+
+        fn make_inner_db(&self, params: &EthRevmParams) -> eyre::Result<Self::InnerDb> {
+            let state_provider = self.eth_db_provider().state_by_block_id(params.block_id)?;
+
+            let this = StateProviderDatabase::new(state_provider);
+            Ok(RethLibmdbxDatabaseRef::new(this))
+        }
     }
 }
