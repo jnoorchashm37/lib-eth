@@ -76,7 +76,7 @@ pub trait EthRevm {
     }
 }
 
-pub trait EthRevmInput {
+pub trait EthRevmInput: Send + Sync {
     fn block_id(&self) -> BlockId;
 
     fn chain_id(&self) -> ChainId;
