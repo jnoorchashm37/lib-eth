@@ -32,6 +32,7 @@ pub use op_revm::OpTransaction;
 #[cfg(feature = "op-revm")]
 mod op_impl {
     use op_revm::{DefaultOp, L1BlockInfo, OpBuilder, OpEvm, OpSpecId, OpTransaction, precompiles::OpPrecompiles};
+    use revm::handler::EvmTr;
 
     use super::*;
 
@@ -42,11 +43,22 @@ mod op_impl {
         OpPrecompiles
     >;
 
-    pub fn empty_op_mainnet_revm<DB: DatabaseRef>(db: CacheDB<DB>, chain_id: ChainId) -> OptimismRevmEvm<DB> {
-        Context::op()
+    pub fn empty_op_mainnet_revm<DB: DatabaseRef>(
+        db: CacheDB<DB>,
+        chain_id: ChainId,
+        disable_nonce_check: bool
+    ) -> OptimismRevmEvm<DB> {
+        let mut evm = Context::op()
             .modify_cfg_chained(|cfg| cfg.chain_id = chain_id)
             .with_db(db)
-            .build_op()
+            .build_op();
+
+        if disable_nonce_check {
+            evm.ctx_mut()
+                .modify_cfg(|cfg| cfg.disable_nonce_check = true);
+        }
+
+        evm
     }
 }
 
