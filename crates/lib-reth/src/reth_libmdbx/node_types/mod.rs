@@ -133,11 +133,10 @@ mod revm_impl {
     use reth_revm::database::StateProviderDatabase;
 
     use super::*;
-    use crate::traits::{EthRevm, EthRevmParams, RevmNetworkSpec, reth_revm_utils::RethLibmdbxDatabaseRef};
+    use crate::traits::{EthRevm, EthRevmParams, reth_revm_utils::RethLibmdbxDatabaseRef};
 
-    impl<Ext, N> EthRevm<N> for RethNodeClient<Ext>
+    impl<Ext> EthRevm for RethNodeClient<Ext>
     where
-        N: RevmNetworkSpec,
         Ext: EthNetworkExt,
         Ext::RethNode: NodeClientSpec
     {

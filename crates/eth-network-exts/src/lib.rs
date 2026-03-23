@@ -8,6 +8,14 @@ pub trait EthNetworkExt: Send + Sync {
     type TypeExt;
 
     const CHAIN_ID: u64;
+
+    fn is_op_chain() -> bool {
+        match Self::CHAIN_ID {
+            1 | 11155111 => false,
+            8453 | 130 => true,
+            _ => unreachable!()
+        }
+    }
 }
 
 pub trait AllExtensions: std::fmt::Debug + Send + Sync + Clone + Copy + Unpin + 'static {}

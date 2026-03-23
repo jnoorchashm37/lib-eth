@@ -106,18 +106,30 @@ mod revm_impl {
     use revm_database::{AlloyDB, WrapDatabaseAsync};
 
     use super::*;
-    use crate::traits::{AsyncEthRevmParams, EthRevm, RevmNetworkSpec};
+    use crate::traits::{AsyncEthRevmParams, EthRevm};
 
-    impl<P, N> EthRevm<N> for EthRpcClient<P, N>
+    impl<P, N> EthRevm for EthRpcClient<P, N>
     where
         P: Provider<N> + Clone,
-        N: Network + RevmNetworkSpec
+        N: Network
     {
         type InnerDb = WrapDatabaseAsync<AlloyDB<N, P>>;
         type Params = AsyncEthRevmParams;
 
         fn make_inner_db(&self, params: &AsyncEthRevmParams) -> eyre::Result<Self::InnerDb> {
             Ok(WrapDatabaseAsync::with_handle(AlloyDB::new(self.provider.clone(), params.block_id), params.handle.clone()))
+        }
+    }
+
+    impl<N> EthRevm for RootProvider<N>
+    where
+        N: Network
+    {
+        type InnerDb = WrapDatabaseAsync<AlloyDB<N, RootProvider<N>>>;
+        type Params = AsyncEthRevmParams;
+
+        fn make_inner_db(&self, params: &AsyncEthRevmParams) -> eyre::Result<Self::InnerDb> {
+            Ok(WrapDatabaseAsync::with_handle(AlloyDB::new(self.clone(), params.block_id), params.handle.clone()))
         }
     }
 }
