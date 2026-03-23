@@ -56,7 +56,7 @@ impl AngstromL2Constants {
 pub const ANGSTROM_L2_CONSTANTS_BASE_MAINNET: AngstromL2Constants = AngstromL2Constants {
     angstrom_l2_factory:    address!("0x0000000000a5f21b113A18DD18f6FbEEBD01201B"),
     hook_address_miner:     address!("0x7f210fC1757556A8161D797077cc13eDf50969d3"),
-    angstrom_deploy_block:  40425432,
+    angstrom_deploy_block:  42584531,
     chain_id:               8453,
     angstrom_eip712_domain: alloy_sol_types::eip712_domain!(
         name: "Angstrom",
