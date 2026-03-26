@@ -1,16 +1,14 @@
 use alloy_primitives::{Address, ChainId, address};
-use alloy_sol_types::Eip712Domain;
 
 use crate::v4::{UNISWAP_V4_CONSTANTS_BASE_MAINNET, UNISWAP_V4_CONSTANTS_UNICHAIN_MAINNET, UniswapV4Constants};
 
 #[derive(Debug, Clone)]
 pub struct AngstromL2Constants {
-    angstrom_l2_factory:    Address,
-    hook_address_miner:     Address,
-    angstrom_deploy_block:  u64,
-    chain_id:               u64,
-    angstrom_eip712_domain: Eip712Domain,
-    uniswap_constants:      UniswapV4Constants
+    angstrom_l2_factory:   Address,
+    hook_address_miner:    Address,
+    angstrom_deploy_block: u64,
+    chain_id:              u64,
+    uniswap_constants:     UniswapV4Constants
 }
 
 impl AngstromL2Constants {
@@ -43,40 +41,23 @@ impl AngstromL2Constants {
     }
 
     #[inline]
-    pub fn angstrom_eip712_domain(&self) -> Eip712Domain {
-        self.angstrom_eip712_domain.clone()
-    }
-
-    #[inline]
     pub fn uniswap_constants(&self) -> UniswapV4Constants {
         self.uniswap_constants
     }
 }
 
 pub const ANGSTROM_L2_CONSTANTS_BASE_MAINNET: AngstromL2Constants = AngstromL2Constants {
-    angstrom_l2_factory:    address!("0x0000000000a5f21b113A18DD18f6FbEEBD01201B"),
-    hook_address_miner:     address!("0x7f210fC1757556A8161D797077cc13eDf50969d3"),
-    angstrom_deploy_block:  42584531,
-    chain_id:               8453,
-    angstrom_eip712_domain: alloy_sol_types::eip712_domain!(
-        name: "Angstrom",
-        version: "v1",
-        chain_id: 8453,
-        verifying_contract: Address::ZERO,
-    ),
-    uniswap_constants:      UNISWAP_V4_CONSTANTS_BASE_MAINNET
+    angstrom_l2_factory:   address!("0x0000000000fd3b85c30f942e8d878e858e69cd05"),
+    hook_address_miner:    address!("0x1C9e501116879d6A6748582047eBcb8bbcCC7d53"),
+    angstrom_deploy_block: 43873127,
+    chain_id:              8453,
+    uniswap_constants:     UNISWAP_V4_CONSTANTS_BASE_MAINNET
 };
 
 pub const ANGSTROM_L2_CONSTANTS_UNICHAIN_MAINNET: AngstromL2Constants = AngstromL2Constants {
-    angstrom_l2_factory:    address!("0x000000000000a0220e791bAe32b16C0406980C42"),
-    hook_address_miner:     address!("0x98bD6680eE62C006730A5a4dFB2f0Da6645A10f5"),
-    angstrom_deploy_block:  29275745,
-    chain_id:               130,
-    angstrom_eip712_domain: alloy_sol_types::eip712_domain!(
-        name: "Angstrom",
-        version: "v1",
-        chain_id: 130,
-        verifying_contract: Address::ZERO,
-    ),
-    uniswap_constants:      UNISWAP_V4_CONSTANTS_UNICHAIN_MAINNET
+    angstrom_l2_factory:   address!("0x000000000000a0220e791bAe32b16C0406980C42"),
+    hook_address_miner:    address!("0x98bD6680eE62C006730A5a4dFB2f0Da6645A10f5"),
+    angstrom_deploy_block: 29275745,
+    chain_id:              130,
+    uniswap_constants:     UNISWAP_V4_CONSTANTS_UNICHAIN_MAINNET
 };
