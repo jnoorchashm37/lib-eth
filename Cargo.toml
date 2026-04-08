@@ -50,8 +50,10 @@ alloy-rpc-types = { version = "1.8.2", default-features = false }
 alloy-sol-types = { version = "1.5.6", default-features = false }
 alloy-primitives = { version = "1.5.6", default-features = false }
 alloy-eips = { version = "1.8.2", default-features = false }
-op-alloy-network = { version = "0.24.0", default-features = false }
-op-alloy-consensus = { version = "0.24.0", default-features = false }
+# op-alloy-network = { version = "0.24.0", default-features = false }
+# op-alloy-consensus = { version = "0.24.0", default-features = false }
+op-alloy-network = { git = "https://github.com/ethereum-optimism/optimism", rev = "63dce55", default-features = false }
+op-alloy-consensus = { git = "https://github.com/ethereum-optimism/optimism", rev = "63dce55", default-features = false }
 
 
 # revm
@@ -89,10 +91,10 @@ thiserror = "1.0"
 # testing
 serial_test = "3.1"
 
-# [patch.crates-io]
+[patch.crates-io]
 # op-alloy-rpc-types-engine = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
 # op-alloy-consensus = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
-# op-alloy-network = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
+# op-alloy-network = { git = "https://github.com/ethereum-optimism/optimism", rev = "63dce55" }
 # op-alloy-rpc-types = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
 # op-alloy = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
 # alloy-op-hardforks = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }

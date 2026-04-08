@@ -150,7 +150,11 @@ impl CliRunner {
 fn cli_context(
     runtime: &tokio::runtime::Handle
 ) -> (CliContext, TaskExecutor, tokio::task::JoinHandle<Result<(), PanickedTaskError>>) {
-    let task_executor = TaskExecutor::with_existing_handle(runtime.clone()).expect("failed to attach task runtime");
+    let task_executor = reth_tasks::RuntimeBuilder::new(
+        reth_tasks::RuntimeConfig::default().with_tokio(reth_tasks::TokioConfig::existing_handle(runtime.clone()))
+    )
+    .build()
+    .expect("failed to attach task runtime");
     let task_manager_handle = task_executor
         .take_task_manager_handle()
         .expect("task runtime missing task manager handle");
