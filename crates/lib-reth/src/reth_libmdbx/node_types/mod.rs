@@ -7,7 +7,6 @@ use reth_provider::{
     BlockNumReader, CanonStateSubscriptions, DatabaseProviderFactory, StateProviderFactory, TryIntoHistoricalStateProvider
 };
 use reth_rpc_eth_api::{EthApiTypes, FullEthApiServer, RpcNodeCore, helpers::FullEthApi};
-use reth_tasks::TaskSpawner;
 
 use crate::{reth_libmdbx::DbConfig, traits::EthStream};
 
@@ -42,15 +41,14 @@ pub trait NodeClientSpec: NodeTypes + Send + Sync {
         + Clone
         + 'static;
 
-    fn new_with_db<T, Ext>(
+    fn new_with_db<Ext>(
         db_config: DbConfig,
         max_tasks: usize,
-        task_executor: T,
+        task_executor: reth_tasks::Runtime,
         chain: Arc<<Self as NodeTypes>::ChainSpec>,
         ipc_path_or_rpc_url: Option<String>
     ) -> eyre::Result<RethNodeClient<Ext>>
     where
-        T: TaskSpawner + Clone + 'static,
         Ext: EthNetworkExt<RethNode = Self>;
 }
 

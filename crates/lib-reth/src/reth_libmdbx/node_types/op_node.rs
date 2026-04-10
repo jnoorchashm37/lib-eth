@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use alloy_primitives::U256;
-use alloy_rpc_types::TransactionInfo;
 use eth_network_exts::EthNetworkExt;
-use op_alloy_consensus::transaction::{OpDepositInfo, OpTransactionInfo};
 use op_alloy_network::Optimism;
 use reth_db::{DatabaseEnv, open_db_read_only};
 use reth_network_api::noop::NoopNetwork;
@@ -14,7 +12,6 @@ use reth_optimism_node::{
     OpNode,
     txpool::{OpPooledTransaction, OpTransactionValidator}
 };
-use reth_optimism_primitives::OpTransactionSigned;
 use reth_optimism_rpc::{
     OpEthApi,
     eth::{receipt::OpReceiptConverter, transaction::OpTxInfoMapper}
@@ -24,9 +21,9 @@ use reth_provider::{
     providers::{BlockchainProvider, RocksDBProvider, StaticFileProvider}
 };
 use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
-use reth_rpc_eth_api::{RpcConverter, TxInfoMapper, node::RpcNodeCoreAdapter};
+use reth_rpc_eth_api::{RpcConverter, node::RpcNodeCoreAdapter};
 use reth_rpc_eth_types::{EthConfig, EthFilterConfig};
-use reth_tasks::pool::BlockingTaskGuard;
+use reth_tasks::{Runtime, pool::BlockingTaskGuard};
 use reth_transaction_pool::{
     CoinbaseTipOrdering, Pool, PoolConfig, TransactionValidationTaskExecutor, blobstore::NoopBlobStore,
     validate::EthTransactionValidatorBuilder
@@ -36,7 +33,16 @@ use crate::reth_libmdbx::{DbConfig, NodeClientSpec, RethNodeClient};
 
 type OpRethApi = OpEthApi<
     RpcNodeCoreAdapter<OpRethDbProvider, OpRethTxPool, NoopNetwork, OpEvmConfig>,
-    RpcConverter<Optimism, OpEvmConfig, OpReceiptConverter<OpRethDbProvider>, (), OpTxInfoMapper<OpRethDbProvider>>
+    RpcConverter<
+        Optimism,
+        OpEvmConfig,
+        OpReceiptConverter<OpRethDbProvider>,
+        (),
+        OpTxInfoMapper<OpRethDbProvider>,
+        (),
+        (),
+        reth_optimism_evm::tx::OpTxEnvConverter
+    >
 >;
 type OpRethFilter = EthFilter<OpRethApi>;
 type OpRethTrace = TraceApi<OpRethApi>;
@@ -57,20 +63,19 @@ impl NodeClientSpec for OpNode {
     type Trace = OpRethTrace;
     type TxPool = OpRethTxPool;
 
-    fn new_with_db<T, Ext>(
+    fn new_with_db<Ext>(
         db_config: DbConfig,
         max_tasks: usize,
-        task_executor: T,
+        task_executor: Runtime,
         chain_spec: Arc<Self::ChainSpec>,
         ipc_path_or_rpc_url: Option<String>
     ) -> eyre::Result<RethNodeClient<Ext>>
     where
-        T: reth_tasks::TaskSpawner + Clone + 'static,
         Ext: EthNetworkExt<RethNode = Self>
     {
         let db = Arc::new(open_db_read_only(db_config.db_path, db_config.db_args)?);
 
-        let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone(), true)?;
+        let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone())?;
         let rocksdb_provider = RocksDBProvider::builder(&db_config.rocksdb_path)
             .with_default_tables()
             .build()?;
@@ -98,10 +103,12 @@ impl NodeClientSpec for OpNode {
         );
 
         let rpc_converter = RpcConverter::new(OpReceiptConverter::new(blockchain_provider.clone()))
-            .with_mapper(OpTxInfoMapper::new(blockchain_provider.clone()));
+            .with_mapper(OpTxInfoMapper::new(blockchain_provider.clone()))
+            .with_tx_env_converter(reth_optimism_evm::tx::OpTxEnvConverter);
 
         let eth_api_inner =
             EthApi::builder(blockchain_provider.clone(), tx_pool.clone(), NoopNetwork::default(), evm_config)
+                .task_spawner(task_executor.clone())
                 .with_rpc_converter(rpc_converter)
                 .build_inner();
         let api = OpEthApi::new(eth_api_inner, None, U256::from(1_000_000u64), None);
@@ -109,8 +116,8 @@ impl NodeClientSpec for OpNode {
         let tracing_call_guard = BlockingTaskGuard::new(max_tasks);
         let trace = TraceApi::new(api.clone(), tracing_call_guard.clone(), EthConfig::default());
 
-        let debug = DebugApi::new(api.clone(), tracing_call_guard, task_executor.clone(), futures::stream::empty());
-        let filter = EthFilter::new(api.clone(), EthFilterConfig::default(), Box::new(task_executor.clone()));
+        let debug = DebugApi::new(api.clone(), tracing_call_guard, &task_executor, futures::stream::empty());
+        let filter = EthFilter::new(api.clone(), EthFilterConfig::default(), task_executor.clone());
 
         Ok(RethNodeClient {
             api,
@@ -122,18 +129,6 @@ impl NodeClientSpec for OpNode {
             chain_spec,
             ipc_path_or_rpc_url
         })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-pub struct SimpleOpTxInfoMapper;
-
-impl TxInfoMapper<OpTransactionSigned> for SimpleOpTxInfoMapper {
-    type Err = std::convert::Infallible;
-    type Out = OpTransactionInfo;
-
-    fn try_map(&self, _tx: &OpTransactionSigned, tx_info: TransactionInfo) -> Result<Self::Out, Self::Err> {
-        Ok(OpTransactionInfo::new(tx_info, OpDepositInfo::default()))
     }
 }
 
