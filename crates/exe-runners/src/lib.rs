@@ -27,6 +27,8 @@ use crossbeam_utils as _;
 use dashmap as _;
 #[cfg(feature = "reth-tasks")]
 use futures_util as _;
+#[cfg(all(feature = "reth-tasks", target_os = "linux"))]
+use libc as _;
 #[cfg(all(feature = "reth-tasks", feature = "rayon"))]
 use parking_lot as _;
 #[cfg(all(feature = "reth-tasks", feature = "rayon"))]
