@@ -2772,11 +2772,16 @@ dependencies = [
 name = "exe-runners"
 version = "0.1.0"
 dependencies = [
- "auto_impl",
- "dyn-clone",
+ "crossbeam-utils",
+ "dashmap",
  "futures-util",
+ "libc",
+ "parking_lot",
+ "pin-project",
+ "rayon",
  "reth-tasks",
  "thiserror 1.0.69",
+ "thread-priority",
  "tokio",
  "tracing",
  "tracing-futures",

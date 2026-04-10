@@ -1,6 +1,6 @@
 use std::{
     path::{Path, PathBuf},
-    sync::Arc
+    sync::Arc,
 };
 
 use eth_network_exts::EthNetworkExt;
@@ -12,24 +12,24 @@ use crate::reth_libmdbx::node_types::{NodeClientSpec, RethNodeClient};
 
 #[derive(Debug, Clone)]
 pub struct RethNodeClientBuilder<Ext: EthNetworkExt> {
-    db_path:             String,
-    max_tasks:           usize,
-    db_args:             Option<DatabaseArguments>,
-    chain:               Arc<<Ext::RethNode as NodeTypes>::ChainSpec>,
-    max_read_tx_secs:    MaxReadTransactionDuration,
-    ipc_path_or_rpc_url: Option<String>
+    db_path: String,
+    max_tasks: usize,
+    db_args: Option<DatabaseArguments>,
+    chain: Arc<<Ext::RethNode as NodeTypes>::ChainSpec>,
+    max_read_tx_secs: MaxReadTransactionDuration,
+    ipc_path_or_rpc_url: Option<String>,
 }
 
 impl<Ext: EthNetworkExt> RethNodeClientBuilder<Ext>
 where
-    Ext::RethNode: NodeClientSpec
+    Ext::RethNode: NodeClientSpec,
 {
     pub fn new(
         db_path: &str,
         max_tasks: usize,
         chain: Arc<<Ext::RethNode as NodeTypes>::ChainSpec>,
         ipc_path_or_rpc_url: Option<&str>,
-        max_read_tx_secs: Option<u64>
+        max_read_tx_secs: Option<u64>,
     ) -> Self {
         Self {
             db_path: db_path.to_string(),
@@ -39,7 +39,7 @@ where
             ipc_path_or_rpc_url: ipc_path_or_rpc_url.map(|a| a.to_string()),
             max_read_tx_secs: max_read_tx_secs
                 .map(|s| MaxReadTransactionDuration::Set(std::time::Duration::from_secs(s)))
-                .unwrap_or(MaxReadTransactionDuration::Unbounded)
+                .unwrap_or(MaxReadTransactionDuration::Unbounded),
         }
     }
 
@@ -52,10 +52,7 @@ where
         self.build_with_task_executor(super::node_types::provider_runtime()?)
     }
 
-    pub fn build_with_task_executor(
-        self,
-        task_executor: Runtime
-    ) -> eyre::Result<RethNodeClient<Ext>> {
+    pub fn build_with_task_executor(self, task_executor: Runtime) -> eyre::Result<RethNodeClient<Ext>> {
         let (db_path, static_files_path, rocksdb_path) = self.db_paths()?;
 
         let db_args = self.db_args.unwrap_or_else(|| {
@@ -69,7 +66,7 @@ where
             self.max_tasks,
             task_executor,
             self.chain,
-            self.ipc_path_or_rpc_url
+            self.ipc_path_or_rpc_url,
         )
     }
 
@@ -99,8 +96,8 @@ where
 }
 
 pub struct DbConfig {
-    pub db_path:           PathBuf,
+    pub db_path: PathBuf,
     pub static_files_path: PathBuf,
-    pub rocksdb_path:      PathBuf,
-    pub db_args:           DatabaseArguments
+    pub rocksdb_path: PathBuf,
+    pub db_args: DatabaseArguments,
 }

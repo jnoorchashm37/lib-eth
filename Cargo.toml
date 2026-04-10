@@ -78,6 +78,13 @@ tokio = "1"
 futures = "0.3"
 futures-util = "0.3"
 async-trait = "0"
+dashmap = "6.0"
+thread-priority = "3.0.0"
+rayon = "1.7"
+crossbeam-utils = "0.8"
+parking_lot = "0.12"
+pin-project = "1.0.12"
+libc = "0.2"
 
 
 # misc
