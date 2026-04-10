@@ -4,16 +4,17 @@ use std::{
     any::Any,
     cell::RefCell,
     future::Future,
-    panic::{AssertUnwindSafe, catch_unwind},
+    panic::{catch_unwind, AssertUnwindSafe},
     pin::Pin,
     sync::{
-        Arc,
         atomic::{AtomicUsize, Ordering},
+        Arc
     },
-    task::{Context, Poll, ready},
-    thread,
+    task::{ready, Context, Poll},
+    thread
 };
-use tokio::sync::{AcquireError, OwnedSemaphorePermit, Semaphore, oneshot};
+
+use tokio::sync::{oneshot, AcquireError, OwnedSemaphorePermit, Semaphore};
 
 /// RPC tracing call guard semaphore.
 #[derive(Clone, Debug)]
@@ -37,10 +38,11 @@ impl BlockingTaskGuard {
     }
 }
 
-/// Used to execute blocking tasks on a rayon thread pool from within a tokio runtime.
+/// Used to execute blocking tasks on a rayon thread pool from within a tokio
+/// runtime.
 #[derive(Clone, Debug)]
 pub struct BlockingTaskPool {
-    pool: Arc<rayon::ThreadPool>,
+    pool: Arc<rayon::ThreadPool>
 }
 
 impl BlockingTaskPool {
@@ -54,7 +56,8 @@ impl BlockingTaskPool {
         rayon::ThreadPoolBuilder::new()
     }
 
-    /// Convenience function to build a new thread pool with the default configuration.
+    /// Convenience function to build a new thread pool with the default
+    /// configuration.
     pub fn build() -> Result<Self, rayon::ThreadPoolBuildError> {
         Self::builder().build().map(Self::new)
     }
@@ -63,7 +66,7 @@ impl BlockingTaskPool {
     pub fn spawn<F, R>(&self, func: F) -> BlockingTaskHandle<R>
     where
         F: FnOnce() -> R + Send + 'static,
-        R: Send + 'static,
+        R: Send + 'static
     {
         let (tx, rx) = oneshot::channel();
 
@@ -78,7 +81,7 @@ impl BlockingTaskPool {
     pub fn spawn_fifo<F, R>(&self, func: F) -> BlockingTaskHandle<R>
     where
         F: FnOnce() -> R + Send + 'static,
-        R: Send + 'static,
+        R: Send + 'static
     {
         let (tx, rx) = oneshot::channel();
 
@@ -96,7 +99,7 @@ impl BlockingTaskPool {
 #[pin_project::pin_project]
 pub struct BlockingTaskHandle<T> {
     #[pin]
-    pub(crate) rx: oneshot::Receiver<thread::Result<T>>,
+    pub(crate) rx: oneshot::Receiver<thread::Result<T>>
 }
 
 impl<T> Future for BlockingTaskHandle<T> {
@@ -105,7 +108,7 @@ impl<T> Future for BlockingTaskHandle<T> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match ready!(self.project().rx.poll(cx)) {
             Ok(res) => Poll::Ready(res),
-            Err(_) => Poll::Ready(Err(Box::<TokioBlockingTaskError>::default())),
+            Err(_) => Poll::Ready(Err(Box::<TokioBlockingTaskError>::default()))
         }
     }
 }
@@ -123,7 +126,7 @@ thread_local! {
 /// A rayon thread pool with per-thread [`Worker`] state.
 #[derive(Debug)]
 pub struct WorkerPool {
-    pool: rayon::ThreadPool,
+    pool: rayon::ThreadPool
 }
 
 impl WorkerPool {
@@ -166,7 +169,7 @@ impl WorkerPool {
                     }
                     match remaining.compare_exchange_weak(current, current - 1, Ordering::Relaxed, Ordering::Relaxed) {
                         Ok(_) => break,
-                        Err(actual) => current = actual,
+                        Err(actual) => current = actual
                     }
                 }
                 WORKER.with_borrow_mut(|worker| f(worker));
@@ -181,7 +184,8 @@ impl WorkerPool {
         });
     }
 
-    /// Runs a closure on the pool with access to the calling thread's [`Worker`].
+    /// Runs a closure on the pool with access to the calling thread's
+    /// [`Worker`].
     pub fn install<R: Send>(&self, f: impl FnOnce(&Worker) -> R + Send) -> R {
         self.pool.install(|| WORKER.with_borrow(|worker| f(worker)))
     }
@@ -201,20 +205,23 @@ impl WorkerPool {
         self.pool.in_place_scope(f)
     }
 
-    /// Access the current thread's [`Worker`] from within an [`install`] closure.
+    /// Access the current thread's [`Worker`] from within an [`install`]
+    /// closure.
     pub fn with_worker<R>(f: impl FnOnce(&Worker) -> R) -> R {
         WORKER.with_borrow(|worker| f(worker))
     }
 
-    /// Mutably access the current thread's [`Worker`] from within a pool closure.
+    /// Mutably access the current thread's [`Worker`] from within a pool
+    /// closure.
     pub fn with_worker_mut<R>(f: impl FnOnce(&mut Worker) -> R) -> R {
         WORKER.with_borrow_mut(|worker| f(worker))
     }
 }
 
-/// Builds a rayon thread pool with a panic handler that prevents aborting the process.
+/// Builds a rayon thread pool with a panic handler that prevents aborting the
+/// process.
 pub fn build_pool_with_panic_handler(
-    builder: rayon::ThreadPoolBuilder,
+    builder: rayon::ThreadPoolBuilder
 ) -> Result<rayon::ThreadPool, rayon::ThreadPoolBuildError> {
     builder.panic_handler(|_| {}).build()
 }
@@ -222,7 +229,7 @@ pub fn build_pool_with_panic_handler(
 /// Per-thread state container for a [`WorkerPool`].
 #[derive(Debug, Default)]
 pub struct Worker {
-    state: Option<Box<dyn Any>>,
+    state: Option<Box<dyn Any>>
 }
 
 impl Worker {
@@ -244,7 +251,7 @@ impl Worker {
                 *r = f(Some(r));
                 boxed
             }
-            None => Box::new(f(None)),
+            None => Box::new(f(None))
         };
 
         self.state = Some(new_state);
@@ -268,7 +275,8 @@ impl Worker {
             .expect("worker state type mismatch")
     }
 
-    /// Returns a mutable reference to the state, initializing it with `f` on first access.
+    /// Returns a mutable reference to the state, initializing it with `f` on
+    /// first access.
     pub fn get_or_init<T: 'static>(&mut self, f: impl FnOnce() -> T) -> &mut T {
         self.state
             .get_or_insert_with(|| Box::new(f()))

@@ -2,18 +2,20 @@
 //!
 //! Entrypoint for running commands.
 
-use crate::{PanickedTaskError, Runtime, RuntimeBuildError, RuntimeBuilder, RuntimeConfig, TaskExecutor};
 use std::{future::Future, pin::pin, sync::mpsc, time::Duration};
+
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info};
+
+use crate::{PanickedTaskError, Runtime, RuntimeBuildError, RuntimeBuilder, RuntimeConfig, TaskExecutor};
 
 /// Executes CLI commands.
 ///
 /// Provides utilities for running a CLI command to completion.
 #[derive(Debug)]
 pub struct CliRunner {
-    config: CliRunnerConfig,
-    runtime: Runtime,
+    config:  CliRunnerConfig,
+    runtime: Runtime
 }
 
 impl CliRunner {
@@ -42,7 +44,7 @@ impl CliRunner {
     /// Executes an async block on the runtime and blocks until completion.
     pub fn block_on<F, T>(&self, fut: F) -> T
     where
-        F: Future<Output = T>,
+        F: Future<Output = T>
     {
         self.runtime.handle().block_on(fut)
     }
@@ -53,7 +55,7 @@ impl CliRunner {
     pub fn run_command_until_exit<F, E>(self, command: impl FnOnce(CliContext) -> F) -> Result<(), E>
     where
         F: Future<Output = Result<(), E>>,
-        E: Send + Sync + std::fmt::Display + From<std::io::Error> + From<PanickedTaskError> + 'static,
+        E: Send + Sync + std::fmt::Display + From<std::io::Error> + From<PanickedTaskError> + 'static
     {
         let (context, task_manager_handle) = cli_context(&self.runtime);
 
@@ -78,11 +80,11 @@ impl CliRunner {
     /// Executes a command in a blocking context with access to `CliContext`.
     pub fn run_blocking_command_until_exit<F, E>(
         self,
-        command: impl FnOnce(CliContext) -> F + Send + 'static,
+        command: impl FnOnce(CliContext) -> F + Send + 'static
     ) -> Result<(), E>
     where
         F: Future<Output = Result<(), E>> + Send + 'static,
-        E: Send + Sync + std::fmt::Display + From<std::io::Error> + From<PanickedTaskError> + 'static,
+        E: Send + Sync + std::fmt::Display + From<std::io::Error> + From<PanickedTaskError> + 'static
     {
         let (context, task_manager_handle) = cli_context(&self.runtime);
 
@@ -92,7 +94,7 @@ impl CliRunner {
 
         let command_res = self.runtime.handle().block_on(run_to_completion_or_panic(
             task_manager_handle,
-            run_until_ctrl_c(async move { command_handle.await.expect("Failed to join blocking task") }),
+            run_until_ctrl_c(async move { command_handle.await.expect("Failed to join blocking task") })
         ));
 
         if let Err(err) = &command_res {
@@ -113,7 +115,7 @@ impl CliRunner {
     pub fn run_until_ctrl_c<F, E>(self, fut: F) -> Result<(), E>
     where
         F: Future<Output = Result<(), E>>,
-        E: Send + Sync + From<std::io::Error> + 'static,
+        E: Send + Sync + From<std::io::Error> + 'static
     {
         self.runtime.handle().block_on(run_until_ctrl_c(fut))?;
         Ok(())
@@ -124,7 +126,7 @@ impl CliRunner {
     pub fn run_blocking_until_ctrl_c<F, E>(self, fut: F) -> Result<(), E>
     where
         F: Future<Output = Result<(), E>> + Send + 'static,
-        E: Send + Sync + From<std::io::Error> + 'static,
+        E: Send + Sync + From<std::io::Error> + 'static
     {
         let handle = self.runtime.handle().clone();
         let handle2 = handle.clone();
@@ -153,7 +155,7 @@ fn cli_context(runtime: &Runtime) -> (CliContext, JoinHandle<Result<(), Panicked
 #[derive(Debug)]
 pub struct CliContext {
     /// Used to execute/spawn tasks.
-    pub task_executor: TaskExecutor,
+    pub task_executor: TaskExecutor
 }
 
 /// Default timeout for graceful shutdown of tasks.
@@ -163,7 +165,7 @@ const DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Debug, Clone)]
 pub struct CliRunnerConfig {
     /// Timeout for graceful shutdown of tasks.
-    pub graceful_shutdown_timeout: Duration,
+    pub graceful_shutdown_timeout: Duration
 }
 
 impl Default for CliRunnerConfig {
@@ -188,11 +190,11 @@ impl CliRunnerConfig {
 /// Runs the given future to completion or until a critical task panicked.
 async fn run_to_completion_or_panic<F, E>(
     task_manager_handle: JoinHandle<Result<(), PanickedTaskError>>,
-    fut: F,
+    fut: F
 ) -> Result<(), E>
 where
     F: Future<Output = Result<(), E>>,
-    E: Send + Sync + From<PanickedTaskError> + 'static,
+    E: Send + Sync + From<PanickedTaskError> + 'static
 {
     let fut = pin!(fut);
     tokio::select! {
@@ -212,7 +214,7 @@ where
 async fn run_until_ctrl_c<F, E>(fut: F) -> Result<(), E>
 where
     F: Future<Output = Result<(), E>>,
-    E: Send + Sync + 'static + From<std::io::Error>,
+    E: Send + Sync + 'static + From<std::io::Error>
 {
     let ctrl_c = tokio::signal::ctrl_c();
 

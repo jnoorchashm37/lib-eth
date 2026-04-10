@@ -1,7 +1,8 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use crossbeam_utils::CachePadded;
 use parking_lot::{Condvar, Mutex};
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
-use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Extension trait for [`IndexedParallelIterator`] that streams results to a
 /// sequential consumer in index order.
@@ -24,7 +25,7 @@ impl<I: IndexedParallelIterator> ForEachOrdered for I {
     fn for_each_ordered<F>(self, f: F)
     where
         Self::Item: Send,
-        F: FnMut(Self::Item),
+        F: FnMut(Self::Item)
     {
         ordered_impl(self, None, f);
     }
@@ -32,15 +33,15 @@ impl<I: IndexedParallelIterator> ForEachOrdered for I {
     fn for_each_ordered_in<F>(self, pool: &rayon::ThreadPool, f: F)
     where
         Self::Item: Send,
-        F: FnMut(Self::Item),
+        F: FnMut(Self::Item)
     {
         ordered_impl(self, Some(pool), f);
     }
 }
 
 struct Slot<T> {
-    value: Mutex<Option<T>>,
-    notify: Condvar,
+    value:  Mutex<Option<T>>,
+    notify: Condvar
 }
 
 impl<T> Slot<T> {
@@ -50,8 +51,8 @@ impl<T> Slot<T> {
 }
 
 struct Shared<T> {
-    slots: Box<[CachePadded<Slot<T>>]>,
-    panicked: AtomicBool,
+    slots:    Box<[CachePadded<Slot<T>>]>,
+    panicked: AtomicBool
 }
 
 impl<T> Shared<T> {
@@ -89,9 +90,9 @@ fn ordered_impl<I, F>(iter: I, pool: Option<&rayon::ThreadPool>, mut f: F)
 where
     I: IndexedParallelIterator,
     I::Item: Send,
-    F: FnMut(I::Item),
+    F: FnMut(I::Item)
 {
-    use std::panic::{AssertUnwindSafe, catch_unwind};
+    use std::panic::{catch_unwind, AssertUnwindSafe};
 
     let n = iter.len();
     if n == 0 {
@@ -128,7 +129,7 @@ where
 
 fn in_place_scope_in<'scope, F, R>(pool: Option<&rayon::ThreadPool>, f: F)
 where
-    F: FnOnce(&rayon::Scope<'scope>) -> R,
+    F: FnOnce(&rayon::Scope<'scope>) -> R
 {
     if let Some(pool) = pool {
         pool.in_place_scope(f);
@@ -139,12 +140,14 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use rayon::prelude::*;
     use std::sync::{
-        Barrier,
         atomic::{AtomicUsize, Ordering},
+        Barrier
     };
+
+    use rayon::prelude::*;
+
+    use super::*;
 
     #[test]
     fn preserves_order() {

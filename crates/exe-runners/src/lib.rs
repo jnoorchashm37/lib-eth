@@ -8,6 +8,19 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[cfg(not(feature = "reth-tasks"))]
+use std::{
+    any::Any,
+    fmt::{Display, Formatter},
+    pin::Pin,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc
+    },
+    task::{ready, Context, Poll},
+    thread
+};
+
 #[cfg(all(feature = "reth-tasks", feature = "rayon"))]
 use crossbeam_utils as _;
 #[cfg(feature = "reth-tasks")]
@@ -24,30 +37,18 @@ use rayon as _;
 use thiserror as _;
 #[cfg(feature = "reth-tasks")]
 use thread_priority as _;
+#[cfg(not(feature = "reth-tasks"))]
+use tokio::{
+    runtime::Handle,
+    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender}
+};
+#[cfg(not(feature = "reth-tasks"))]
+use tracing::debug;
 #[cfg(feature = "reth-tasks")]
 use tracing_futures as _;
 
 #[cfg(not(feature = "reth-tasks"))]
-use crate::shutdown::{Shutdown, Signal, signal};
-#[cfg(not(feature = "reth-tasks"))]
-use std::{
-    any::Any,
-    fmt::{Display, Formatter},
-    pin::Pin,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
-    task::{Context, Poll, ready},
-    thread,
-};
-#[cfg(not(feature = "reth-tasks"))]
-use tokio::{
-    runtime::Handle,
-    sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
-};
-#[cfg(not(feature = "reth-tasks"))]
-use tracing::debug;
+use crate::shutdown::{signal, Shutdown, Signal};
 
 #[cfg(not(feature = "reth-tasks"))]
 pub mod lazy;
@@ -69,10 +70,13 @@ pub mod pool;
 
 mod runner;
 
+/// Lock-free ordered parallel iterator extension trait.
+#[cfg(all(not(feature = "reth-tasks"), feature = "rayon"))]
+pub use for_each_ordered::ForEachOrdered;
 #[cfg(not(feature = "reth-tasks"))]
 pub use lazy::LazyHandle;
 #[cfg(all(not(feature = "reth-tasks"), feature = "rayon"))]
-pub use pool::{Worker, WorkerPool, build_pool_with_panic_handler};
+pub use pool::{build_pool_with_panic_handler, Worker, WorkerPool};
 #[cfg(feature = "reth-tasks")]
 pub use reth_tasks::*;
 pub use runner::*;
@@ -80,10 +84,6 @@ pub use runner::*;
 pub use runtime::RayonConfig;
 #[cfg(not(feature = "reth-tasks"))]
 pub use runtime::{Runtime, RuntimeBuildError, RuntimeBuilder, RuntimeConfig, TokioConfig};
-
-/// Lock-free ordered parallel iterator extension trait.
-#[cfg(all(not(feature = "reth-tasks"), feature = "rayon"))]
-pub use for_each_ordered::ForEachOrdered;
 
 /// A [`TaskExecutor`] is now an alias for [`Runtime`].
 #[cfg(not(feature = "reth-tasks"))]
@@ -100,7 +100,7 @@ pub type TaskExecutor = Runtime;
 pub fn spawn_os_thread<F, T>(name: &str, f: F) -> thread::JoinHandle<T>
 where
     F: FnOnce() -> T + Send + 'static,
-    T: Send + 'static,
+    T: Send + 'static
 {
     let handle = Handle::try_current().ok();
     thread::Builder::new()
@@ -121,11 +121,11 @@ where
 pub fn spawn_scoped_os_thread<'scope, 'env, F, T>(
     scope: &'scope thread::Scope<'scope, 'env>,
     name: &str,
-    f: F,
+    f: F
 ) -> thread::ScopedJoinHandle<'scope, T>
 where
     F: FnOnce() -> T + Send + 'scope,
-    T: Send + 'scope,
+    T: Send + 'scope
 {
     let handle = Handle::try_current().ok();
     thread::Builder::new()
@@ -156,10 +156,10 @@ pub struct TaskManager {
     /// The [Signal] to fire when all tasks should be shutdown.
     ///
     /// This is fired when dropped.
-    signal: Option<Signal>,
+    signal:         Option<Signal>,
     /// How many [`GracefulShutdown`](crate::shutdown::GracefulShutdown) tasks
     /// are currently active.
-    graceful_tasks: Arc<AtomicUsize>,
+    graceful_tasks: Arc<AtomicUsize>
 }
 
 #[cfg(not(feature = "reth-tasks"))]
@@ -228,7 +228,7 @@ impl std::future::Future for TaskManager {
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub struct PanickedTaskError {
     task_name: &'static str,
-    error: Option<String>,
+    error:     Option<String>
 }
 
 #[cfg(not(feature = "reth-tasks"))]
@@ -250,8 +250,8 @@ impl PanickedTaskError {
             Ok(value) => Some(*value),
             Err(error) => match error.downcast::<&str>() {
                 Ok(value) => Some(value.to_string()),
-                Err(_) => None,
-            },
+                Err(_) => None
+            }
         };
 
         Self { task_name, error }
@@ -265,16 +265,17 @@ pub(crate) enum TaskEvent {
     /// Indicates that a critical task has panicked.
     Panic(PanickedTaskError),
     /// A signal requesting a graceful shutdown of the `TaskManager`.
-    GracefulShutdown,
+    GracefulShutdown
 }
 
 #[cfg(all(test, not(feature = "reth-tasks")))]
 mod tests {
-    use super::*;
     use std::{
         sync::atomic::{AtomicBool, AtomicUsize, Ordering},
-        time::Duration,
+        time::Duration
     };
+
+    use super::*;
 
     #[test]
     fn test_critical() {

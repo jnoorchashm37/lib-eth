@@ -4,32 +4,37 @@
 //! - Tokio runtime (either owned or attached)
 //! - Task spawning with shutdown awareness and panic monitoring
 //! - Dedicated rayon thread pools for different workloads (with `rayon`)
-//! - [`BlockingTaskGuard`] for rate-limiting expensive operations (with `rayon`)
+//! - [`BlockingTaskGuard`] for rate-limiting expensive operations (with
+//!   `rayon`)
 
-#[cfg(feature = "rayon")]
-use crate::pool::{BlockingTaskGuard, BlockingTaskPool, WorkerPool, build_pool_with_panic_handler};
-use crate::{
-    PanickedTaskError, TaskEvent, TaskManager,
-    metrics::{IncCounterOnDrop, TaskExecutorMetrics},
-    shutdown::{GracefulShutdown, GracefulShutdownGuard, Shutdown},
-    worker_map::WorkerMap,
-};
-use futures_util::{Future, FutureExt, TryFutureExt, future::select};
 #[cfg(feature = "rayon")]
 use std::{num::NonZeroUsize, thread::available_parallelism};
 use std::{
     pin::pin,
     sync::{
-        Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
+        Arc, Mutex
     },
-    time::{Duration, Instant},
+    time::{Duration, Instant}
 };
-use tokio::{runtime::Handle, sync::mpsc::UnboundedSender, task::JoinHandle};
+
+use futures_util::{future::select, Future, FutureExt, TryFutureExt};
+use tokio::{
+    runtime::{Handle, Runtime as TokioRuntime},
+    sync::mpsc::UnboundedSender,
+    task::JoinHandle
+};
 use tracing::{debug, error};
 use tracing_futures::Instrument;
 
-use tokio::runtime::Runtime as TokioRuntime;
+#[cfg(feature = "rayon")]
+use crate::pool::{build_pool_with_panic_handler, BlockingTaskGuard, BlockingTaskPool, WorkerPool};
+use crate::{
+    metrics::{IncCounterOnDrop, TaskExecutorMetrics},
+    shutdown::{GracefulShutdown, GracefulShutdownGuard, Shutdown},
+    worker_map::WorkerMap,
+    PanickedTaskError, TaskEvent, TaskManager
+};
 
 /// Default thread keep-alive duration for the tokio runtime.
 pub const DEFAULT_THREAD_KEEP_ALIVE: Duration = Duration::from_secs(15);
@@ -49,14 +54,14 @@ pub enum TokioConfig {
     /// Build and own a new tokio runtime.
     Owned {
         /// Number of worker threads.
-        worker_threads: Option<usize>,
+        worker_threads:    Option<usize>,
         /// How long to keep worker threads alive when idle.
         thread_keep_alive: Duration,
         /// Thread name prefix.
-        thread_name: &'static str,
+        thread_name:       &'static str
     },
     /// Attach to an existing tokio runtime handle.
-    ExistingHandle(Handle),
+    ExistingHandle(Handle)
 }
 
 impl Default for TokioConfig {
@@ -75,9 +80,9 @@ impl TokioConfig {
     /// threads.
     pub const fn with_worker_threads(worker_threads: usize) -> Self {
         Self::Owned {
-            worker_threads: Some(worker_threads),
+            worker_threads:    Some(worker_threads),
             thread_keep_alive: DEFAULT_THREAD_KEEP_ALIVE,
-            thread_name: "tokio-rt",
+            thread_name:       "tokio-rt"
         }
     }
 }
@@ -87,35 +92,35 @@ impl TokioConfig {
 #[cfg(feature = "rayon")]
 pub struct RayonConfig {
     /// Number of threads for the general CPU pool.
-    pub cpu_threads: Option<usize>,
+    pub cpu_threads:                  Option<usize>,
     /// Number of CPU cores to reserve for OS and other processes.
-    pub reserved_cpu_cores: usize,
+    pub reserved_cpu_cores:           usize,
     /// Number of threads for the RPC blocking pool.
-    pub rpc_threads: Option<usize>,
+    pub rpc_threads:                  Option<usize>,
     /// Number of threads for the storage I/O pool.
-    pub storage_threads: Option<usize>,
+    pub storage_threads:              Option<usize>,
     /// Maximum number of concurrent blocking tasks for the RPC guard semaphore.
-    pub max_blocking_tasks: usize,
+    pub max_blocking_tasks:           usize,
     /// Number of threads for the proof storage worker pool.
     pub proof_storage_worker_threads: Option<usize>,
     /// Number of threads for the proof account worker pool.
     pub proof_account_worker_threads: Option<usize>,
     /// Number of threads for the prewarming pool.
-    pub prewarming_threads: Option<usize>,
+    pub prewarming_threads:           Option<usize>
 }
 
 #[cfg(feature = "rayon")]
 impl Default for RayonConfig {
     fn default() -> Self {
         Self {
-            cpu_threads: None,
-            reserved_cpu_cores: DEFAULT_RESERVED_CPU_CORES,
-            rpc_threads: None,
-            storage_threads: None,
-            max_blocking_tasks: DEFAULT_MAX_BLOCKING_TASKS,
+            cpu_threads:                  None,
+            reserved_cpu_cores:           DEFAULT_RESERVED_CPU_CORES,
+            rpc_threads:                  None,
+            storage_threads:              None,
+            max_blocking_tasks:           DEFAULT_MAX_BLOCKING_TASKS,
             proof_storage_worker_threads: None,
             proof_account_worker_threads: None,
-            prewarming_threads: None,
+            prewarming_threads:           None
         }
     }
 }
@@ -178,7 +183,7 @@ pub struct RuntimeConfig {
     pub tokio: TokioConfig,
     /// Rayon thread pool configuration.
     #[cfg(feature = "rayon")]
-    pub rayon: RayonConfig,
+    pub rayon: RayonConfig
 }
 
 impl RuntimeConfig {
@@ -205,34 +210,34 @@ pub enum RuntimeBuildError {
     /// Failed to build a rayon thread pool.
     #[cfg(feature = "rayon")]
     #[error("Failed to build rayon thread pool: {0}")]
-    RayonBuild(#[from] rayon::ThreadPoolBuildError),
+    RayonBuild(#[from] rayon::ThreadPoolBuildError)
 }
 
 struct RuntimeInner {
     /// Owned tokio runtime, if we built one.
-    _tokio_runtime: Option<TokioRuntime>,
+    _tokio_runtime:            Option<TokioRuntime>,
     /// Handle to the tokio runtime.
-    handle: Handle,
+    handle:                    Handle,
     /// Receiver of the shutdown signal.
-    on_shutdown: Shutdown,
+    on_shutdown:               Shutdown,
     /// Sender half for sending task events to the [`TaskManager`].
-    task_events_tx: UnboundedSender<TaskEvent>,
+    task_events_tx:            UnboundedSender<TaskEvent>,
     /// Task executor metrics.
-    metrics: TaskExecutorMetrics,
+    metrics:                   TaskExecutorMetrics,
     /// How many [`GracefulShutdown`] tasks are currently active.
-    graceful_tasks: Arc<AtomicUsize>,
+    graceful_tasks:            Arc<AtomicUsize>,
     /// General-purpose rayon CPU pool.
     #[cfg(feature = "rayon")]
-    cpu_pool: rayon::ThreadPool,
+    cpu_pool:                  rayon::ThreadPool,
     /// RPC blocking pool.
     #[cfg(feature = "rayon")]
-    rpc_pool: BlockingTaskPool,
+    rpc_pool:                  BlockingTaskPool,
     /// Storage I/O pool.
     #[cfg(feature = "rayon")]
-    storage_pool: rayon::ThreadPool,
+    storage_pool:              rayon::ThreadPool,
     /// Rate limiter for expensive RPC operations.
     #[cfg(feature = "rayon")]
-    blocking_guard: BlockingTaskGuard,
+    blocking_guard:            BlockingTaskGuard,
     /// Proof storage worker pool.
     #[cfg(feature = "rayon")]
     proof_storage_worker_pool: WorkerPool,
@@ -241,11 +246,11 @@ struct RuntimeInner {
     proof_account_worker_pool: WorkerPool,
     /// Prewarming pool.
     #[cfg(feature = "rayon")]
-    prewarming_pool: WorkerPool,
+    prewarming_pool:           WorkerPool,
     /// Named single-thread worker map.
-    worker_map: WorkerMap,
+    worker_map:                WorkerMap,
     /// Handle to the spawned [`TaskManager`] background task.
-    task_manager_handle: Mutex<Option<JoinHandle<Result<(), PanickedTaskError>>>>,
+    task_manager_handle:       Mutex<Option<JoinHandle<Result<(), PanickedTaskError>>>>
 }
 
 /// A cheaply cloneable handle to the runtime resources.
@@ -319,7 +324,7 @@ impl Runtime {
     pub fn test() -> Self {
         let config = match Handle::try_current() {
             Ok(handle) => Self::test_config().with_tokio(TokioConfig::existing_handle(handle)),
-            Err(_) => Self::test_config(),
+            Err(_) => Self::test_config()
         };
         RuntimeBuilder::new(config)
             .build()
@@ -329,21 +334,21 @@ impl Runtime {
     const fn test_config() -> RuntimeConfig {
         RuntimeConfig {
             tokio: TokioConfig::Owned {
-                worker_threads: Some(2),
+                worker_threads:    Some(2),
                 thread_keep_alive: DEFAULT_THREAD_KEEP_ALIVE,
-                thread_name: "tokio-test",
+                thread_name:       "tokio-test"
             },
             #[cfg(feature = "rayon")]
             rayon: RayonConfig {
-                cpu_threads: Some(2),
-                reserved_cpu_cores: 0,
-                rpc_threads: Some(2),
-                storage_threads: Some(2),
-                max_blocking_tasks: 16,
+                cpu_threads:                  Some(2),
+                reserved_cpu_cores:           0,
+                rpc_threads:                  Some(2),
+                storage_threads:              Some(2),
+                max_blocking_tasks:           16,
                 proof_storage_worker_threads: Some(2),
                 proof_account_worker_threads: Some(2),
-                prewarming_threads: Some(2),
-            },
+                prewarming_threads:           Some(2)
+            }
         }
     }
 }
@@ -352,7 +357,7 @@ enum TaskKind {
     /// Spawn the task to the default executor.
     Default,
     /// Spawn the task to the blocking executor.
-    Blocking,
+    Blocking
 }
 
 impl Runtime {
@@ -363,7 +368,7 @@ impl Runtime {
 
     fn spawn_on_rt<F>(&self, fut: F, task_kind: TaskKind) -> JoinHandle<()>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static
     {
         match task_kind {
             TaskKind::Default => self.0.handle.spawn(fut),
@@ -376,17 +381,17 @@ impl Runtime {
 
     fn spawn_task_as<F>(&self, fut: F, task_kind: TaskKind) -> JoinHandle<()>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static
     {
         match task_kind {
             TaskKind::Default => self.0.metrics.inc_regular_tasks(),
-            TaskKind::Blocking => self.0.metrics.inc_regular_blocking_tasks(),
+            TaskKind::Blocking => self.0.metrics.inc_regular_blocking_tasks()
         }
         let on_shutdown = self.0.on_shutdown.clone();
 
         let finished_counter = match task_kind {
             TaskKind::Default => self.0.metrics.finished_regular_tasks_total.clone(),
-            TaskKind::Blocking => self.0.metrics.finished_regular_blocking_tasks_total.clone(),
+            TaskKind::Blocking => self.0.metrics.finished_regular_blocking_tasks_total.clone()
         };
 
         let task = {
@@ -404,7 +409,7 @@ impl Runtime {
     /// Spawns the task onto the runtime.
     pub fn spawn_task<F>(&self, fut: F) -> JoinHandle<()>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static
     {
         self.spawn_task_as(fut, TaskKind::Default)
     }
@@ -412,7 +417,7 @@ impl Runtime {
     /// Spawns a blocking task onto the runtime.
     pub fn spawn_blocking_task<F>(&self, fut: F) -> JoinHandle<()>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static
     {
         self.spawn_task_as(fut, TaskKind::Blocking)
     }
@@ -421,7 +426,7 @@ impl Runtime {
     pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
     where
         F: FnOnce() -> R + Send + 'static,
-        R: Send + 'static,
+        R: Send + 'static
     {
         self.0.handle.spawn_blocking(func)
     }
@@ -435,7 +440,7 @@ impl Runtime {
     pub fn spawn_blocking_named<F, R>(&self, name: &'static str, func: F) -> crate::LazyHandle<R>
     where
         F: FnOnce() -> R + Send + 'static,
-        R: Send + 'static,
+        R: Send + 'static
     {
         crate::LazyHandle::new(self.0.worker_map.spawn_on(name, func))
     }
@@ -443,7 +448,7 @@ impl Runtime {
     /// Spawns the task onto the runtime with the shutdown signal.
     pub fn spawn_with_signal<F>(&self, f: impl FnOnce(Shutdown) -> F) -> JoinHandle<()>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static
     {
         let on_shutdown = self.0.on_shutdown.clone();
         let fut = f(on_shutdown);
@@ -453,7 +458,7 @@ impl Runtime {
 
     fn spawn_critical_as<F>(&self, name: &'static str, fut: F, task_kind: TaskKind) -> JoinHandle<()>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static
     {
         self.0.metrics.inc_critical_tasks();
         let panicked_tasks_tx = self.0.task_events_tx.clone();
@@ -481,7 +486,7 @@ impl Runtime {
     /// Spawns a critical task onto the runtime.
     pub fn spawn_critical_task<F>(&self, name: &'static str, fut: F) -> JoinHandle<()>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static
     {
         self.spawn_critical_as(name, fut, TaskKind::Default)
     }
@@ -489,7 +494,7 @@ impl Runtime {
     /// Spawns a critical blocking task onto the runtime.
     pub fn spawn_critical_blocking_task<F>(&self, name: &'static str, fut: F) -> JoinHandle<()>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static
     {
         self.spawn_critical_as(name, fut, TaskKind::Blocking)
     }
@@ -498,15 +503,15 @@ impl Runtime {
     pub fn spawn_critical_with_graceful_shutdown_signal<F>(
         &self,
         name: &'static str,
-        f: impl FnOnce(GracefulShutdown) -> F,
+        f: impl FnOnce(GracefulShutdown) -> F
     ) -> JoinHandle<()>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static
     {
         let panicked_tasks_tx = self.0.task_events_tx.clone();
         let on_shutdown = GracefulShutdown::new(
             self.0.on_shutdown.clone(),
-            GracefulShutdownGuard::new(Arc::clone(&self.0.graceful_tasks)),
+            GracefulShutdownGuard::new(Arc::clone(&self.0.graceful_tasks))
         );
         let fut = f(on_shutdown);
 
@@ -526,11 +531,11 @@ impl Runtime {
     /// Spawns a regular task with graceful shutdown support.
     pub fn spawn_with_graceful_shutdown_signal<F>(&self, f: impl FnOnce(GracefulShutdown) -> F) -> JoinHandle<()>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static
     {
         let on_shutdown = GracefulShutdown::new(
             self.0.on_shutdown.clone(),
-            GracefulShutdownGuard::new(Arc::clone(&self.0.graceful_tasks)),
+            GracefulShutdownGuard::new(Arc::clone(&self.0.graceful_tasks))
         );
         let fut = f(on_shutdown);
 
@@ -552,8 +557,8 @@ impl Runtime {
         let _ = self.do_graceful_shutdown(None);
     }
 
-    /// Fires the shutdown signal and waits until all graceful tasks complete or the timeout
-    /// elapses.
+    /// Fires the shutdown signal and waits until all graceful tasks complete or
+    /// the timeout elapses.
     pub fn graceful_shutdown_with_timeout(&self, timeout: Duration) -> bool {
         self.do_graceful_shutdown(Some(timeout))
     }
@@ -576,7 +581,7 @@ impl Runtime {
 /// Builder for constructing a [`Runtime`].
 #[derive(Debug, Clone)]
 pub struct RuntimeBuilder {
-    config: RuntimeConfig,
+    config: RuntimeConfig
 }
 
 impl RuntimeBuilder {
@@ -607,7 +612,7 @@ impl RuntimeBuilder {
                 let h = runtime.handle().clone();
                 (Some(runtime), h)
             }
-            TokioConfig::ExistingHandle(h) => (None, h.clone()),
+            TokioConfig::ExistingHandle(h) => (None, h.clone())
         };
 
         let (task_manager, on_shutdown, task_events_tx, graceful_tasks) = TaskManager::new_parts(handle.clone());
@@ -620,7 +625,7 @@ impl RuntimeBuilder {
             blocking_guard,
             proof_storage_worker_pool,
             proof_account_worker_pool,
-            prewarming_pool,
+            prewarming_pool
         ) = {
             let default_threads = config.rayon.default_thread_count();
             let rpc_threads = config.rayon.rpc_threads.unwrap_or(default_threads);
@@ -628,13 +633,13 @@ impl RuntimeBuilder {
             let cpu_pool = build_pool_with_panic_handler(
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(default_threads)
-                    .thread_name(|i| format!("cpu-{i:02}")),
+                    .thread_name(|i| format!("cpu-{i:02}"))
             )?;
 
             let rpc_raw = build_pool_with_panic_handler(
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(rpc_threads)
-                    .thread_name(|i| format!("rpc-{i:02}")),
+                    .thread_name(|i| format!("rpc-{i:02}"))
             )?;
             let rpc_pool = BlockingTaskPool::new(rpc_raw);
 
@@ -645,7 +650,7 @@ impl RuntimeBuilder {
             let storage_pool = build_pool_with_panic_handler(
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(storage_threads)
-                    .thread_name(|i| format!("storage-{i:02}")),
+                    .thread_name(|i| format!("storage-{i:02}"))
             )?;
 
             let blocking_guard = BlockingTaskGuard::new(config.rayon.max_blocking_tasks);
@@ -657,7 +662,7 @@ impl RuntimeBuilder {
             let proof_storage_worker_pool = WorkerPool::from_builder(
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(proof_storage_worker_threads)
-                    .thread_name(|i| format!("proof-strg-{i:02}")),
+                    .thread_name(|i| format!("proof-strg-{i:02}"))
             )?;
 
             let proof_account_worker_threads = config
@@ -667,14 +672,14 @@ impl RuntimeBuilder {
             let proof_account_worker_pool = WorkerPool::from_builder(
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(proof_account_worker_threads)
-                    .thread_name(|i| format!("proof-acct-{i:02}")),
+                    .thread_name(|i| format!("proof-acct-{i:02}"))
             )?;
 
             let prewarming_threads = config.rayon.prewarming_threads.unwrap_or(default_threads);
             let prewarming_pool = WorkerPool::from_builder(
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(prewarming_threads)
-                    .thread_name(|i| format!("prewarm-{i:02}")),
+                    .thread_name(|i| format!("prewarm-{i:02}"))
             )?;
 
             debug!(
@@ -695,7 +700,7 @@ impl RuntimeBuilder {
                 blocking_guard,
                 proof_storage_worker_pool,
                 proof_account_worker_pool,
-                prewarming_pool,
+                prewarming_pool
             )
         };
 
@@ -729,7 +734,7 @@ impl RuntimeBuilder {
             #[cfg(feature = "rayon")]
             prewarming_pool,
             worker_map: WorkerMap::new(),
-            task_manager_handle: Mutex::new(Some(task_manager_handle)),
+            task_manager_handle: Mutex::new(Some(task_manager_handle))
         };
 
         Ok(Runtime(Arc::new(inner)))

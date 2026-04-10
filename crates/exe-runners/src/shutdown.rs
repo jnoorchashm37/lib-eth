@@ -1,14 +1,15 @@
 //! Helper for shutdown signals
 
-use futures_util::{
-    FutureExt,
-    future::{FusedFuture, Shared},
-};
 use std::{
     future::Future,
     pin::Pin,
-    sync::{Arc, atomic::AtomicUsize},
-    task::{Context, Poll, ready},
+    sync::{atomic::AtomicUsize, Arc},
+    task::{ready, Context, Poll}
+};
+
+use futures_util::{
+    future::{FusedFuture, Shared},
+    FutureExt
 };
 use tokio::sync::oneshot;
 
@@ -16,7 +17,7 @@ use tokio::sync::oneshot;
 #[derive(Debug)]
 pub struct GracefulShutdown {
     shutdown: Shutdown,
-    guard: Option<GracefulShutdownGuard>,
+    guard:    Option<GracefulShutdownGuard>
 }
 
 impl GracefulShutdown {
@@ -43,7 +44,7 @@ impl Future for GracefulShutdown {
             self.get_mut()
                 .guard
                 .take()
-                .expect("Future polled after completion"),
+                .expect("Future polled after completion")
         )
     }
 }
@@ -52,16 +53,17 @@ impl Clone for GracefulShutdown {
     fn clone(&self) -> Self {
         Self {
             shutdown: self.shutdown.clone(),
-            guard: self
+            guard:    self
                 .guard
                 .as_ref()
-                .map(|g| GracefulShutdownGuard::new(Arc::clone(&g.0))),
+                .map(|g| GracefulShutdownGuard::new(Arc::clone(&g.0)))
         }
     }
 }
 
-/// A guard that fires once dropped to signal the [`TaskManager`](crate::TaskManager) that the
-/// [`GracefulShutdown`] has completed.
+/// A guard that fires once dropped to signal the
+/// [`TaskManager`](crate::TaskManager) that the [`GracefulShutdown`] has
+/// completed.
 #[derive(Debug)]
 #[must_use = "if unused the task will not be gracefully shutdown"]
 pub struct GracefulShutdownGuard(Arc<AtomicUsize>);
@@ -88,7 +90,11 @@ impl Future for Shutdown {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let pin = self.get_mut();
-        if pin.0.is_terminated() || pin.0.poll_unpin(cx).is_ready() { Poll::Ready(()) } else { Poll::Pending }
+        if pin.0.is_terminated() || pin.0.poll_unpin(cx).is_ready() {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        }
     }
 }
 
@@ -111,9 +117,11 @@ pub fn signal() -> (Signal, Shutdown) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use futures_util::future::join_all;
     use std::time::Duration;
+
+    use futures_util::future::join_all;
+
+    use super::*;
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_shutdown() {

@@ -1,6 +1,7 @@
 //! A lazily-resolved handle to a value computed on a background thread.
 
 use std::sync::{Arc, OnceLock};
+
 use tokio::sync::oneshot;
 
 /// Handle to a value computed on a background thread.
@@ -11,17 +12,18 @@ use tokio::sync::oneshot;
 ///
 /// This type is cheaply cloneable via internal [`Arc`].
 ///
-/// Create via [`Runtime::spawn_blocking_named`](crate::Runtime::spawn_blocking_named).
+/// Create via
+/// [`Runtime::spawn_blocking_named`](crate::Runtime::spawn_blocking_named).
 #[derive(Clone)]
 pub struct LazyHandle<T> {
-    inner: Arc<LazyHandleInner<T>>,
+    inner: Arc<LazyHandleInner<T>>
 }
 
 struct LazyHandleInner<T> {
     /// Pending receiver, taken on first access.
-    rx: std::sync::Mutex<Option<oneshot::Receiver<T>>>,
+    rx:    std::sync::Mutex<Option<oneshot::Receiver<T>>>,
     /// Cached result after the first successful receive.
-    value: OnceLock<T>,
+    value: OnceLock<T>
 }
 
 impl<T: Send + 'static> LazyHandle<T> {
@@ -36,7 +38,8 @@ impl<T: Send + 'static> LazyHandle<T> {
         Self { inner: Arc::new(inner) }
     }
 
-    /// Blocks until the background task completes and returns a reference to the result.
+    /// Blocks until the background task completes and returns a reference to
+    /// the result.
     ///
     /// On the first call this awaits the receiver; subsequent calls return the
     /// cached value without blocking.
@@ -58,7 +61,8 @@ impl<T: Send + 'static> LazyHandle<T> {
         })
     }
 
-    /// Consumes the handle and returns the inner value if this is the only handle.
+    /// Consumes the handle and returns the inner value if this is the only
+    /// handle.
     ///
     /// Returns `Err(self)` if other clones exist, so the caller can fall back
     /// to a reference-based path.
@@ -71,7 +75,7 @@ impl<T: Send + 'static> LazyHandle<T> {
                 .value
                 .into_inner()
                 .expect("value was just set by get()")),
-            Err(arc) => Err(Self { inner: arc }),
+            Err(arc) => Err(Self { inner: arc })
         }
     }
 }

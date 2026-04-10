@@ -58,7 +58,7 @@ fn _deprioritize_background_threads() {
         let comm_path = format!("{task_dir}/{tid_str}/comm");
         let comm = match std::fs::read_to_string(&comm_path) {
             Ok(c) => c,
-            Err(_) => continue,
+            Err(_) => continue
         };
         let comm = comm.trim();
 

@@ -4,8 +4,9 @@
 //! a channel. This is a substitute for `spawn_blocking` that reuses the same OS
 //! thread for the same named task.
 
-use dashmap::DashMap;
 use std::{panic::AssertUnwindSafe, thread};
+
+use dashmap::DashMap;
 use tokio::sync::{mpsc, oneshot};
 
 type BoxedTask = Box<dyn FnOnce() + Send + 'static>;
@@ -14,9 +15,9 @@ type BoxedTask = Box<dyn FnOnce() + Send + 'static>;
 /// OS thread.
 struct WorkerThread {
     /// Sender to submit work to this worker's thread.
-    tx: mpsc::UnboundedSender<BoxedTask>,
+    tx:     mpsc::UnboundedSender<BoxedTask>,
     /// The OS thread handle. Taken during shutdown to join.
-    handle: Option<thread::JoinHandle<()>>,
+    handle: Option<thread::JoinHandle<()>>
 }
 
 impl WorkerThread {
@@ -38,7 +39,7 @@ impl WorkerThread {
 
 /// A map of named single-thread workers.
 pub(crate) struct WorkerMap {
-    workers: DashMap<&'static str, WorkerThread>,
+    workers: DashMap<&'static str, WorkerThread>
 }
 
 impl Default for WorkerMap {
@@ -57,7 +58,7 @@ impl WorkerMap {
     pub(crate) fn spawn_on<F, R>(&self, name: &'static str, f: F) -> oneshot::Receiver<R>
     where
         F: FnOnce() -> R + Send + 'static,
-        R: Send + 'static,
+        R: Send + 'static
     {
         let (result_tx, result_rx) = oneshot::channel();
 
@@ -139,8 +140,8 @@ mod tests {
     #[tokio::test]
     async fn worker_map_sequential_execution() {
         use std::sync::{
-            Arc,
             atomic::{AtomicUsize, Ordering},
+            Arc
         };
 
         let map = WorkerMap::new();
