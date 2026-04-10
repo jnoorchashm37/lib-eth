@@ -29,11 +29,11 @@ reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", version = "2
 reth-rpc-convert = { git = "https://github.com/paradigmxyz/reth", version = "2.0.0", tag = "v2.0.0" }
 reth-chainspec = { git = "https://github.com/paradigmxyz/reth", version = "2.0.0", tag = "v2.0.0" }
 
-reth-optimism-chainspec = { git = "https://github.com/ethereum-optimism/optimism", rev = "63dce55" }
-reth-optimism-node = { git = "https://github.com/ethereum-optimism/optimism", rev = "63dce55" }
-reth-optimism-evm = { git = "https://github.com/ethereum-optimism/optimism", rev = "63dce55" }
-reth-optimism-rpc = { git = "https://github.com/ethereum-optimism/optimism", rev = "63dce55" }
-reth-optimism-primitives = { git = "https://github.com/ethereum-optimism/optimism", rev = "63dce55" }
+reth-optimism-chainspec = { git = "https://github.com/ethereum-optimism/optimism", rev = "1e3ee25" }
+reth-optimism-node = { git = "https://github.com/ethereum-optimism/optimism", rev = "1e3ee25" }
+reth-optimism-evm = { git = "https://github.com/ethereum-optimism/optimism", rev = "1e3ee25" }
+reth-optimism-rpc = { git = "https://github.com/ethereum-optimism/optimism", rev = "1e3ee25" }
+reth-optimism-primitives = { git = "https://github.com/ethereum-optimism/optimism", rev = "1e3ee25" }
 
 reth-revm = { git = "https://github.com/paradigmxyz/reth", version = "2.0.0", tag = "v2.0.0" }
 reth-evm = { git = "https://github.com/paradigmxyz/reth", version = "2.0.0", tag = "v2.0.0" }
@@ -52,8 +52,8 @@ alloy-primitives = { version = "1.5.6", default-features = false }
 alloy-eips = { version = "1.8.2", default-features = false }
 # op-alloy-network = { version = "0.24.0", default-features = false }
 # op-alloy-consensus = { version = "0.24.0", default-features = false }
-op-alloy-network = { git = "https://github.com/ethereum-optimism/optimism", rev = "63dce55", default-features = false }
-op-alloy-consensus = { git = "https://github.com/ethereum-optimism/optimism", rev = "63dce55", default-features = false }
+op-alloy-network = { git = "https://github.com/ethereum-optimism/optimism", rev = "1e3ee25", default-features = false }
+op-alloy-consensus = { git = "https://github.com/ethereum-optimism/optimism", rev = "1e3ee25", default-features = false }
 
 
 # revm
@@ -94,7 +94,7 @@ serial_test = "3.1"
 [patch.crates-io]
 # op-alloy-rpc-types-engine = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
 # op-alloy-consensus = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
-# op-alloy-network = { git = "https://github.com/ethereum-optimism/optimism", rev = "63dce55" }
+# op-alloy-network = { git = "https://github.com/ethereum-optimism/optimism", rev = "1e3ee25" }
 # op-alloy-rpc-types = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
 # op-alloy = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
 # alloy-op-hardforks = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
