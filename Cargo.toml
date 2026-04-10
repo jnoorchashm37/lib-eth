@@ -90,11 +90,3 @@ thiserror = "1.0"
 
 # testing
 serial_test = "3.1"
-
-[patch.crates-io]
-# op-alloy-rpc-types-engine = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
-# op-alloy-consensus = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
-# op-alloy-network = { git = "https://github.com/ethereum-optimism/optimism", rev = "1e3ee25" }
-# op-alloy-rpc-types = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
-# op-alloy = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
-# alloy-op-hardforks = { git = "https://github.com/ethereum-optimism/optimism", tag = "op-reth/v2.0.0" }
