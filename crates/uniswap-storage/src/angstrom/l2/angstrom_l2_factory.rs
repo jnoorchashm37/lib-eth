@@ -170,9 +170,9 @@ mod test {
     use super::*;
     use crate::{angstrom::l2::ANGSTROM_L2_CONSTANTS_BASE_MAINNET, test_utils::eth_base_provider};
 
-    const HOOK_ADDRESS: Address = address!("0x631352Aaa9d6554848aF674106bCD8Bb9E59a5CF");
-    const POOL_ID: B256 = b256!("0x71deb282904d0f76bc8c7867f4618ff91dcb43cf4574bc64700ffc48791d369c");
-    const BLOCK_NUMBER: u64 = 43100000;
+    const HOOK_ADDRESS: Address = address!("0x7Fa49D29481b6D168505Ccde26635e204c09e5CF");
+    const POOL_ID: B256 = b256!("0xd12d3ba76b3dccd9a551f5186771d9d4fed28a6612beb007f322a816f91a2e7a");
+    const BLOCK_NUMBER: u64 = 44600000;
 
     #[tokio::test]
     async fn test_angstrom_l2_factory_get_slot0() {
