@@ -254,7 +254,7 @@ mod test {
         .await
         .unwrap();
 
-        assert_eq!(result, 3);
+        assert_eq!(result, 4);
     }
 
     #[tokio::test]
@@ -264,7 +264,7 @@ mod test {
         let result = angstrom_l2_factory_all_hooks_at(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
-            0,
+            1,
             BlockId::number(BLOCK_NUMBER)
         )
         .await
@@ -288,8 +288,9 @@ mod test {
 
         let mut expected = vec![
             HOOK_ADDRESS,
-            address!("0xf2c78c1dbea9e5af3f5f4c1fa20af16415e6e5cf"),
-            address!("0xf96510247aba6a6b997b60ac4d98bb51aff265cf"),
+            address!("0x974d3fa61a53d3514f5604baceff7c04f02a25cf"),
+            address!("0xab04922d475f30acc143c75dd97b62130312e5cf"),
+            address!("0xcd256a2f4574cb6aca4837313ad225d2fe1de5cf"),
         ];
         expected.sort();
 

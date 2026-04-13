@@ -418,7 +418,7 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result, U256::from_str_radix("655961846384313874296987691990738931780", 10).unwrap());
+        assert_eq!(result, U256::from_str_radix("27434346655209874526444290880258435529694", 10).unwrap());
     }
 
     #[tokio::test]
@@ -459,7 +459,7 @@ mod test {
         .await
         .unwrap();
 
-        assert_eq!(result, U256::from_str_radix("655961846384313874296987691990738931780", 10).unwrap());
+        assert_eq!(result, U256::from_str_radix("27434346655209874526444290880258435529694", 10).unwrap());
     }
 
     #[tokio::test]
