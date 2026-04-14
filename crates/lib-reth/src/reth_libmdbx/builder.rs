@@ -4,7 +4,7 @@ use std::{
 };
 
 use eth_network_exts::EthNetworkExt;
-use exe_runners::{TaskSpawner, TokioTaskExecutor};
+use exe_runners::Runtime;
 use reth_db::mdbx::{DatabaseArguments, MaxReadTransactionDuration};
 use reth_node_types::NodeTypes;
 
@@ -49,13 +49,10 @@ where
     }
 
     pub fn build(self) -> eyre::Result<RethNodeClient<Ext>> {
-        self.build_with_task_executor(TokioTaskExecutor::default())
+        self.build_with_task_executor(super::node_types::provider_runtime()?)
     }
 
-    pub fn build_with_task_executor<T: TaskSpawner + Clone + 'static>(
-        self,
-        task_executor: T
-    ) -> eyre::Result<RethNodeClient<Ext>> {
+    pub fn build_with_task_executor(self, task_executor: Runtime) -> eyre::Result<RethNodeClient<Ext>> {
         let (db_path, static_files_path, rocksdb_path) = self.db_paths()?;
 
         let db_args = self.db_args.unwrap_or_else(|| {
@@ -64,7 +61,7 @@ where
 
         let db_config = DbConfig { db_path, static_files_path, rocksdb_path, db_args };
 
-        <Ext::RethNode as NodeClientSpec>::new_with_db::<_, Ext>(
+        <Ext::RethNode as NodeClientSpec>::new_with_db::<Ext>(
             db_config,
             self.max_tasks,
             task_executor,

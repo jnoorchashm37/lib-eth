@@ -114,3 +114,59 @@ pub fn signal() -> (Signal, Shutdown) {
     let (sender, receiver) = oneshot::channel();
     (Signal(sender), Shutdown(receiver.shared()))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use futures_util::future::join_all;
+
+    use super::*;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_shutdown() {
+        let (_signal, _shutdown) = signal();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_drop_signal() {
+        let (signal, shutdown) = signal();
+
+        tokio::task::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            drop(signal)
+        });
+
+        shutdown.await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_multi_shutdowns() {
+        let (signal, shutdown) = signal();
+
+        let mut tasks = Vec::with_capacity(100);
+        for _ in 0..100 {
+            let shutdown = shutdown.clone();
+            let task = tokio::task::spawn(async move {
+                shutdown.await;
+            });
+            tasks.push(task);
+        }
+
+        drop(signal);
+
+        join_all(tasks).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_drop_signal_from_thread() {
+        let (signal, shutdown) = signal();
+
+        let _thread = std::thread::spawn(|| {
+            std::thread::sleep(Duration::from_millis(500));
+            drop(signal)
+        });
+
+        shutdown.await;
+    }
+}

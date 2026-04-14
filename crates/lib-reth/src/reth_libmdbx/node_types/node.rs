@@ -14,7 +14,7 @@ use reth_provider::{
 use reth_rpc::{DebugApi, EthApi, EthFilter, TraceApi};
 use reth_rpc_eth_api::{RpcConverter, node::RpcNodeCoreAdapter};
 use reth_rpc_eth_types::{EthConfig, EthFilterConfig, receipt::EthReceiptConverter};
-use reth_tasks::{TaskSpawner, pool::BlockingTaskGuard};
+use reth_tasks::{Runtime, pool::BlockingTaskGuard};
 use reth_transaction_pool::{
     CoinbaseTipOrdering, EthPooledTransaction, EthTransactionValidator, Pool, PoolConfig, TransactionValidationTaskExecutor,
     blobstore::NoopBlobStore, validate::EthTransactionValidatorBuilder
@@ -44,20 +44,19 @@ impl NodeClientSpec for EthereumNode {
     type Trace = RethTrace;
     type TxPool = RethTxPool;
 
-    fn new_with_db<T, Ext>(
+    fn new_with_db<Ext>(
         db_config: DbConfig,
         max_tasks: usize,
-        task_executor: T,
+        task_executor: Runtime,
         chain_spec: Arc<Self::ChainSpec>,
         ipc_path_or_rpc_url: Option<String>
     ) -> eyre::Result<RethNodeClient<Ext>>
     where
-        T: TaskSpawner + Clone + 'static,
         Ext: EthNetworkExt<RethNode = Self>
     {
         let db = Arc::new(open_db_read_only(db_config.db_path, db_config.db_args)?);
 
-        let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone(), true)?;
+        let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone())?;
         let rocksdb_provider = RocksDBProvider::builder(&db_config.rocksdb_path)
             .with_default_tables()
             .build()?;
@@ -77,13 +76,15 @@ impl NodeClientSpec for EthereumNode {
 
         let tx_pool = Pool::eth_pool(transaction_validator, NoopBlobStore::default(), PoolConfig::default());
 
-        let api = EthApi::builder(blockchain_provider.clone(), tx_pool.clone(), NoopNetwork::default(), evm_config).build();
+        let api = EthApi::builder(blockchain_provider.clone(), tx_pool.clone(), NoopNetwork::default(), evm_config)
+            .task_spawner(task_executor.clone())
+            .build();
 
         let tracing_call_guard = BlockingTaskGuard::new(max_tasks);
         let trace = TraceApi::new(api.clone(), tracing_call_guard.clone(), EthConfig::default());
 
-        let debug = DebugApi::new(api.clone(), tracing_call_guard, task_executor.clone(), futures::stream::empty());
-        let filter = EthFilter::new(api.clone(), EthFilterConfig::default(), Box::new(task_executor.clone()));
+        let debug = DebugApi::new(api.clone(), tracing_call_guard, &task_executor, futures::stream::empty());
+        let filter = EthFilter::new(api.clone(), EthFilterConfig::default(), task_executor.clone());
 
         Ok(RethNodeClient {
             api,

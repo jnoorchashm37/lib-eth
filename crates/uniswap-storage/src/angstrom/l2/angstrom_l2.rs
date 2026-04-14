@@ -348,9 +348,9 @@ mod test {
         v4::{UNISWAP_V4_CONSTANTS_BASE_MAINNET, pool_manager::pool_state::pool_manager_pool_slot0}
     };
 
-    const HOOK_ADDRESS: Address = address!("0x631352Aaa9d6554848aF674106bCD8Bb9E59a5CF");
-    const POOL_ID: B256 = b256!("0x71deb282904d0f76bc8c7867f4618ff91dcb43cf4574bc64700ffc48791d369c");
-    const BLOCK_NUMBER: u64 = 43100000;
+    const HOOK_ADDRESS: Address = address!("0x7Fa49D29481b6D168505Ccde26635e204c09e5CF");
+    const POOL_ID: B256 = b256!("0xd12d3ba76b3dccd9a551f5186771d9d4fed28a6612beb007f322a816f91a2e7a");
+    const BLOCK_NUMBER: u64 = 44600000;
 
     #[tokio::test]
     async fn test_angstrom_l2_pool_keys_stream() {
@@ -418,7 +418,7 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result, U256::from_str_radix("655961846384313874296987691990738931780", 10).unwrap());
+        assert_eq!(result, U256::from_str_radix("27434346655209874526444290880258435529694", 10).unwrap());
     }
 
     #[tokio::test]
@@ -459,7 +459,7 @@ mod test {
         .await
         .unwrap();
 
-        assert_eq!(result, U256::from_str_radix("655961846384313874296987691990738931780", 10).unwrap());
+        assert_eq!(result, U256::from_str_radix("27434346655209874526444290880258435529694", 10).unwrap());
     }
 
     #[tokio::test]

@@ -170,9 +170,9 @@ mod test {
     use super::*;
     use crate::{angstrom::l2::ANGSTROM_L2_CONSTANTS_BASE_MAINNET, test_utils::eth_base_provider};
 
-    const HOOK_ADDRESS: Address = address!("0x631352Aaa9d6554848aF674106bCD8Bb9E59a5CF");
-    const POOL_ID: B256 = b256!("0x71deb282904d0f76bc8c7867f4618ff91dcb43cf4574bc64700ffc48791d369c");
-    const BLOCK_NUMBER: u64 = 43100000;
+    const HOOK_ADDRESS: Address = address!("0x7Fa49D29481b6D168505Ccde26635e204c09e5CF");
+    const POOL_ID: B256 = b256!("0xd12d3ba76b3dccd9a551f5186771d9d4fed28a6612beb007f322a816f91a2e7a");
+    const BLOCK_NUMBER: u64 = 44600000;
 
     #[tokio::test]
     async fn test_angstrom_l2_factory_get_slot0() {
@@ -254,7 +254,7 @@ mod test {
         .await
         .unwrap();
 
-        assert_eq!(result, 3);
+        assert_eq!(result, 4);
     }
 
     #[tokio::test]
@@ -264,7 +264,7 @@ mod test {
         let result = angstrom_l2_factory_all_hooks_at(
             &provider,
             ANGSTROM_L2_CONSTANTS_BASE_MAINNET.angstrom_l2_factory(),
-            0,
+            1,
             BlockId::number(BLOCK_NUMBER)
         )
         .await
@@ -288,8 +288,9 @@ mod test {
 
         let mut expected = vec![
             HOOK_ADDRESS,
-            address!("0xf2c78c1dbea9e5af3f5f4c1fa20af16415e6e5cf"),
-            address!("0xf96510247aba6a6b997b60ac4d98bb51aff265cf"),
+            address!("0x974d3fa61a53d3514f5604baceff7c04f02a25cf"),
+            address!("0xab04922d475f30acc143c75dd97b62130312e5cf"),
+            address!("0xcd256a2f4574cb6aca4837313ad225d2fe1de5cf"),
         ];
         expected.sort();
 

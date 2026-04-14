@@ -7,7 +7,6 @@ use reth_provider::{
     BlockNumReader, CanonStateSubscriptions, DatabaseProviderFactory, StateProviderFactory, TryIntoHistoricalStateProvider
 };
 use reth_rpc_eth_api::{EthApiTypes, FullEthApiServer, RpcNodeCore, helpers::FullEthApi};
-use reth_tasks::TaskSpawner;
 
 use crate::{reth_libmdbx::DbConfig, traits::EthStream};
 
@@ -17,7 +16,11 @@ pub mod op_node;
 
 pub(crate) fn provider_runtime() -> eyre::Result<reth_tasks::Runtime> {
     match tokio::runtime::Handle::try_current() {
-        Ok(handle) => reth_tasks::Runtime::with_existing_handle(handle).map_err(Into::into),
+        Ok(handle) => reth_tasks::RuntimeBuilder::new(
+            reth_tasks::RuntimeConfig::default().with_tokio(reth_tasks::TokioConfig::existing_handle(handle))
+        )
+        .build()
+        .map_err(Into::into),
         Err(_) => reth_tasks::RuntimeBuilder::new(reth_tasks::RuntimeConfig::default())
             .build()
             .map_err(Into::into)
@@ -38,15 +41,14 @@ pub trait NodeClientSpec: NodeTypes + Send + Sync {
         + Clone
         + 'static;
 
-    fn new_with_db<T, Ext>(
+    fn new_with_db<Ext>(
         db_config: DbConfig,
         max_tasks: usize,
-        task_executor: T,
+        task_executor: reth_tasks::Runtime,
         chain: Arc<<Self as NodeTypes>::ChainSpec>,
         ipc_path_or_rpc_url: Option<String>
     ) -> eyre::Result<RethNodeClient<Ext>>
     where
-        T: TaskSpawner + Clone + 'static,
         Ext: EthNetworkExt<RethNode = Self>;
 }
 
