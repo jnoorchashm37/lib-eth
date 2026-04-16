@@ -77,15 +77,20 @@ impl NodeClientSpec for OpNode {
 
         let static_file_provider = StaticFileProvider::read_only(db_config.static_files_path.clone())?;
         let rocksdb_provider = RocksDBProvider::builder(&db_config.rocksdb_path)
+            .with_read_only(true)
             .with_default_tables()
             .build()?;
+
         let provider_factory = ProviderFactory::new(
             db,
             chain_spec.clone(),
             static_file_provider,
             rocksdb_provider,
             super::provider_runtime()?
-        )?;
+        )?
+        .with_read_only_sync(true);
+
+        provider_factory.sync_providers_if_needed()?;
 
         let blockchain_provider = BlockchainProvider::new(provider_factory.clone())?;
 
