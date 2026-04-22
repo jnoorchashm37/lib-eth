@@ -1,0 +1,26 @@
+[package]
+name = "uniswap-storage-constants"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+exclude.workspace = true
+
+[lib]
+name = "uniswap_storage_constants"
+path = "src/lib.rs"
+
+[dependencies]
+
+alloy-primitives.workspace = true
+alloy-sol-types.workspace = true
+
+
+[features]
+default = ["full"]
+full = ["v4", "v3", "l1-angstrom", "l2-angstrom"]
+
+v4 = []
+v3 = []
+l1-angstrom = ["v4"]
+l2-angstrom = ["v4"]
